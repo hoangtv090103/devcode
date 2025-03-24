@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/devcode/db" VERSION="2025032101" COMMENT="XMLDB file for code assignment module">
+    <TABLES>
+        <TABLE NAME="devcode" COMMENT="Defines code assignments">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="course" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="intro" TYPE="text" LENGTH="small" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="language" TYPE="char" LENGTH="50" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="num_testcases" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="5" SEQUENCE="false"/>
+                <FIELD NAME="points_per_test" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="2" SEQUENCE="false"/>
+                <FIELD NAME="duedate" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="allowsubmissionsfromdate" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="total_points" TYPE="float" LENGTH="10" NOTNULL="true" DEFAULT="100.0" SEQUENCE="false"/>
+                <!-- Thêm các trường mới cho các tính năng -->
+                <FIELD NAME="enable_plagiarism" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether plagiarism detection is enabled"/>
+                <FIELD NAME="similarity_threshold" TYPE="int" LENGTH="3" NOTNULL="true" DEFAULT="80" SEQUENCE="false" COMMENT="Threshold percentage for flagging plagiarism"/>
+                <FIELD NAME="enable_leaderboard" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether leaderboard is enabled"/>
+                <FIELD NAME="leaderboard_size" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="10" SEQUENCE="false" COMMENT="Number of top students to show on leaderboard"/>
+                <FIELD NAME="leaderboard_anonymous" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether leaderboard should hide student names"/>
+                <FIELD NAME="allowed_attempts" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Maximum submission attempts (0 for unlimited)"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="course" TYPE="foreign" FIELDS="course" REFTABLE="course" REFFIELDS="id"/>
+            </KEYS>
+        </TABLE>
+        
+        <TABLE NAME="devcode_testcases" COMMENT="Stores test cases for code assignments">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="devcodeid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="input" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="output" TYPE="text" LENGTH="medium" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="points" TYPE="float" LENGTH="10" NOTNULL="true" DEFAULT="10.0" SEQUENCE="false"/>
+                <FIELD NAME="time_limit" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="3000" SEQUENCE="false"/>
+                <FIELD NAME="visible_to_student" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether this test case is visible to students"/>
+                <FIELD NAME="description" TYPE="text" LENGTH="small" NOTNULL="false" SEQUENCE="false" COMMENT="Description of what the test case is checking"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id"/>
+            </KEYS>
+        </TABLE>
+        
+        <TABLE NAME="devcode_submissions" COMMENT="Stores student submissions">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="devcodeid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="code" TYPE="text" LENGTH="medium" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="language" TYPE="char" LENGTH="50" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="submitted" SEQUENCE="false"/>
+                <FIELD NAME="score" TYPE="float" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="feedback" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="passed_tests" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of test cases passed"/>
+                <FIELD NAME="total_tests" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Total number of test cases for this assignment"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id"/>
+                <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+            </KEYS>
+        </TABLE>
+        
+        <TABLE NAME="devcode_submission_results" COMMENT="Stores individual test case results for submissions">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="submissionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="testcaseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="passed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="output" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="error_message" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="execution_time" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Execution time in milliseconds"/>
+                <FIELD NAME="memory_used" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Memory used in kilobytes"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="submissionid" TYPE="foreign" FIELDS="submissionid" REFTABLE="devcode_submissions" REFFIELDS="id"/>
+                <KEY NAME="testcaseid" TYPE="foreign" FIELDS="testcaseid" REFTABLE="devcode_testcases" REFFIELDS="id"/>
+            </KEYS>
+        </TABLE>
+        <!-- Bảng mới cho phát hiện đạo văn -->
+        <TABLE NAME="devcode_plagiarism" COMMENT="Stores similarity scores between submissions">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="devcodeid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="submission1_id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="submission2_id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="similarity_score" TYPE="float" LENGTH="5" NOTNULL="true" SEQUENCE="false" COMMENT="Percentage of similarity between submissions"/>
+                <FIELD NAME="flagged" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether this pair is flagged for review"/>
+                <FIELD NAME="reviewed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether this pair has been reviewed by a teacher"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id"/>
+                <KEY NAME="submission1_id" TYPE="foreign" FIELDS="submission1_id" REFTABLE="devcode_submissions" REFFIELDS="id"/>
+                <KEY NAME="submission2_id" TYPE="foreign" FIELDS="submission2_id" REFTABLE="devcode_submissions" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="submissions_pair" UNIQUE="true" FIELDS="submission1_id, submission2_id"/>
+            </INDEXES>
+        </TABLE>
+
+        <!-- Bảng cho dữ liệu thống kê dashboard -->
+        <TABLE NAME="devcode_student_stats" COMMENT="Caches student statistics for dashboard">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="assignments_completed" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="total_assignments" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="average_score" TYPE="float" LENGTH="5" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="total_attempts" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="last_submission_time" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="courseid" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
+                <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="courseid_userid" UNIQUE="true" FIELDS="courseid, userid"/>
+            </INDEXES>
+        </TABLE>
+    </TABLES>
+</XMLDB> 
