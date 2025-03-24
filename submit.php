@@ -225,7 +225,7 @@ if ($mform->is_cancelled()) {
         // Chỉ cập nhật nếu chưa có kết quả từ API
         if ($submission->status !== 'graded') {
             $submission->score = 8;  // Điểm số (trên 10)
-            $submission->feedback = "Mô phỏng: Passed 4 out of 5 test cases.";
+            $submission->feedback = get_string('mockresult', 'devcode') . ' 8/10';
             $submission->status = 'graded';
             $DB->update_record('devcode_submissions', $submission);
 

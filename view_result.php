@@ -68,17 +68,10 @@ if (!$canviewsubmission) {
 }
 
 // Lấy thông tin ngôn ngữ
-$assignment = $DB->get_record('devcode', array('id' => $cm->instance));
-$languages = devcode_get_supported_languages();
-$language_name = isset($languages[$assignment->id]) ? 
-                $languages[$assignment->id] : 
-                $submission->language;
+$language_name = devcode_get_language_by_id($submission->language);
 
 // Lấy kết quả test cases nếu có
 $test_results = $DB->get_records('devcode_submission_results', array('submissionid' => $submission->id));
-
-// Lấy bài nộp và kết quả chi tiết
-$results = $DB->get_records('devcode_submission_results', array('submissionid' => $sid));
 
 // Lấy thống kê về test cases pass
 $stats = devcode_get_submission_stats($sid);
@@ -89,17 +82,29 @@ $pass_rate = ($total_tests > 0) ? round(($passed_tests / $total_tests) * 100) : 
 // Hiển thị trang
 echo $OUTPUT->header();
 
-// Hiển thị tiêu đề và thông tin chung
-echo $OUTPUT->heading(format_string($devcode->name) . ': ' . get_string('submissionresults', 'devcode'));
+// Container chính cho trang kết quả
+echo html_writer::start_tag('div', array('class' => 'devcode-results-page'));
 
-// Container chính cho kết quả
-echo html_writer::start_tag('div', array('class' => 'results-container'));
+// Header kết quả
+echo html_writer::start_tag('div', array('class' => 'devcode-results-header'));
+echo html_writer::tag('h2', format_string($devcode->name), array('class' => 'devcode-assignment-title'));
+echo html_writer::tag('div', get_string('submissionresults', 'devcode'), array('class' => 'devcode-results-subtitle'));
+echo html_writer::end_tag('div');
 
-// Thông tin submission
-echo html_writer::start_tag('div', array('class' => 'submission-info'));
-echo html_writer::tag('h4', get_string('submissioninfo', 'devcode'));
+// Container chính cho nội dung kết quả
+echo html_writer::start_tag('div', array('class' => 'devcode-results-container'));
 
-echo html_writer::start_tag('div', array('class' => 'submission-details'));
+// Card thông tin chung
+echo html_writer::start_tag('div', array('class' => 'devcode-card submission-info-card'));
+echo html_writer::start_tag('div', array('class' => 'devcode-card-header'));
+echo html_writer::tag('h3', get_string('submissioninfo', 'devcode'));
+echo html_writer::end_tag('div');
+
+echo html_writer::start_tag('div', array('class' => 'devcode-card-body'));
+
+// Hiển thị thông tin trong grid
+echo html_writer::start_tag('div', array('class' => 'devcode-info-grid'));
+
 // Thông tin người nộp
 if (has_capability('mod/devcode:manage', $context)) {
     $user = $DB->get_record('user', array('id' => $submission->userid));
@@ -107,107 +112,122 @@ if (has_capability('mod/devcode:manage', $context)) {
         new \moodle_url('/user/view.php', array('id' => $user->id, 'course' => $course->id)),
         fullname($user)
     );
-    echo html_writer::tag('div', get_string('student', 'devcode') . ': ' . $user_link);
-}
-
-// Ngày nộp và ngôn ngữ
-echo html_writer::tag('div', get_string('submissiontime', 'devcode') . ': ' . userdate($submission->timecreated));
-echo html_writer::tag('div', get_string('programminglanguage', 'devcode') . ': ' . s($language_name));
-
-// Hiển thị trạng thái
-$status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
-$status_class = 'status-' . $submission->status;
-
-// Hiển thị trạng thái với lớp CSS phù hợp
-echo html_writer::tag('div', get_string('status', 'devcode') . ': ' . 
-    html_writer::tag('span', $status_text, array('class' => $status_class)), 
-    array('class' => 'submission-status'));
-
-// Nếu submission bị lỗi, hiển thị thông báo lỗi nổi bật
-if ($submission->status === 'failed' || $submission->status === 'error') {
-    echo html_writer::start_tag('div', array('class' => 'submission-error alert alert-danger'));
-    echo html_writer::tag('h5', get_string('error', 'core'), array('class' => 'alert-heading'));
-    echo html_writer::tag('pre', $submission->feedback, array('class' => 'error-details'));
+    echo html_writer::start_tag('div', array('class' => 'devcode-info-item'));
+    echo html_writer::tag('div', get_string('student', 'devcode'), array('class' => 'devcode-info-label'));
+    echo html_writer::tag('div', $user_link, array('class' => 'devcode-info-value'));
     echo html_writer::end_tag('div');
 }
 
-echo html_writer::end_tag('div'); // submission-details
-
-echo html_writer::end_tag('div'); // submission-info
-
-// Hiển thị kết quả chấm
-echo html_writer::start_tag('div', array('class' => 'grading-results'));
-
-// Tiêu đề kết quả
-echo html_writer::start_tag('div', array('class' => 'results-header'));
-echo html_writer::tag('h4', get_string('gradingresults', 'devcode'), array('class' => 'results-title'));
-echo html_writer::tag('div', $submission->score . '/10', array('class' => 'results-score'));
+// Ngày nộp
+echo html_writer::start_tag('div', array('class' => 'devcode-info-item'));
+echo html_writer::tag('div', get_string('submissiontime', 'devcode'), array('class' => 'devcode-info-label'));
+echo html_writer::tag('div', userdate($submission->timecreated), array('class' => 'devcode-info-value'));
 echo html_writer::end_tag('div');
 
-// Chi tiết kết quả
-echo html_writer::start_tag('div', array('class' => 'results-details'));
+// Ngôn ngữ
+echo html_writer::start_tag('div', array('class' => 'devcode-info-item'));
+echo html_writer::tag('div', get_string('programminglanguage', 'devcode'), array('class' => 'devcode-info-label'));
+echo html_writer::tag('div', s($language_name), array('class' => 'devcode-info-value'));
+echo html_writer::end_tag('div');
 
-// Thống kê test cases - sử dụng dữ liệu từ trường passed_tests và total_tests
-if (isset($submission->passed_tests) && isset($submission->total_tests)) {
-    $passed_tests = $submission->passed_tests;
-    $total_tests = $submission->total_tests;
-} else {
-    // Tính toán từ kết quả chi tiết nếu không có dữ liệu cached
-    $total_tests = count($test_results);
-    $passed_tests = 0;
-    foreach ($test_results as $test) {
-        if ($test->passed) {
-            $passed_tests++;
-        }
-    }
+// Trạng thái
+$status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
+$status_class = 'status-' . $submission->status;
+echo html_writer::start_tag('div', array('class' => 'devcode-info-item'));
+echo html_writer::tag('div', get_string('status', 'devcode'), array('class' => 'devcode-info-label'));
+echo html_writer::tag('div', html_writer::tag('span', $status_text, array('class' => 'devcode-status-badge ' . $status_class)), 
+    array('class' => 'devcode-info-value'));
+echo html_writer::end_tag('div');
+
+echo html_writer::end_tag('div'); // end devcode-info-grid
+
+// Nếu submission bị lỗi, hiển thị thông báo lỗi nổi bật
+if ($submission->status === 'failed' || $submission->status === 'error') {
+    echo html_writer::start_tag('div', array('class' => 'devcode-error-message'));
+    echo html_writer::tag('div', get_string('error', 'core'), array('class' => 'devcode-error-heading'));
+    echo html_writer::tag('pre', $submission->feedback, array('class' => 'devcode-error-details'));
+    echo html_writer::end_tag('div');
 }
 
-// Tính tỷ lệ phần trăm pass
-$pass_percentage = ($total_tests > 0) ? round(($passed_tests / $total_tests) * 100) : 0;
+echo html_writer::end_tag('div'); // end card-body
+echo html_writer::end_tag('div'); // end submission-info-card
 
-// Item 1: Test cases passed
-echo html_writer::start_tag('div', array('class' => 'result-item'));
-echo html_writer::tag('div', get_string('testcasespassed', 'devcode'), array('class' => 'result-label'));
-echo html_writer::tag('div', 
-    $passed_tests . '/' . $total_tests . ' (' . $pass_percentage . '%)', 
-    array('class' => 'result-value' . ($passed_tests == $total_tests ? ' all-passed' : '')));
+// Card kết quả chấm điểm
+echo html_writer::start_tag('div', array('class' => 'devcode-card grading-results-card'));
+echo html_writer::start_tag('div', array('class' => 'devcode-card-header with-score'));
+echo html_writer::tag('h3', get_string('gradingresults', 'devcode'));
+echo html_writer::tag('div', sprintf('%.1f', $submission->score) . '/10', array('class' => 'devcode-score'));
 echo html_writer::end_tag('div');
 
-// Item 2: Execution time
+echo html_writer::start_tag('div', array('class' => 'devcode-card-body'));
+
+// Hiển thị statistics với progress bar
+echo html_writer::start_tag('div', array('class' => 'devcode-stats-container'));
+
+// Test cases passed với progress bar
+echo html_writer::start_tag('div', array('class' => 'devcode-stats-item'));
+echo html_writer::tag('div', get_string('testcasespassed', 'devcode'), array('class' => 'devcode-stats-label'));
+echo html_writer::start_tag('div', array('class' => 'devcode-stats-value'));
+echo html_writer::tag('div', $passed_tests . '/' . $total_tests . ' (' . $pass_rate . '%)', 
+    array('class' => $passed_tests == $total_tests ? 'devcode-perfect-score' : ''));
+
+// Progress bar
+$bar_class = ($passed_tests == $total_tests) ? 'devcode-progress-perfect' : 
+             ($pass_rate >= 50 ? 'devcode-progress-good' : 'devcode-progress-poor');
+echo html_writer::start_tag('div', array('class' => 'devcode-progress-container'));
+echo html_writer::tag('div', '', array(
+    'class' => 'devcode-progress-bar ' . $bar_class,
+    'style' => 'width: ' . $pass_rate . '%;'
+));
+echo html_writer::end_tag('div'); // end progress-container
+
+echo html_writer::end_tag('div'); // end stats-value
+echo html_writer::end_tag('div'); // end stats-item
+
+// Execution time
 $execution_time = 0;
 foreach ($test_results as $test) {
     $execution_time = max($execution_time, $test->execution_time);
 }
 
-echo html_writer::start_tag('div', array('class' => 'result-item'));
-echo html_writer::tag('div', get_string('executiontime', 'devcode'), array('class' => 'result-label'));
-echo html_writer::tag('div', number_format($execution_time / 1000, 3) . ' s', array('class' => 'result-value'));
-echo html_writer::end_tag('div');
+echo html_writer::start_tag('div', array('class' => 'devcode-stats-item'));
+echo html_writer::tag('div', get_string('executiontime', 'devcode'), array('class' => 'devcode-stats-label'));
+echo html_writer::tag('div', number_format($execution_time / 1000, 3) . ' s', array('class' => 'devcode-stats-value'));
+echo html_writer::end_tag('div'); // end stats-item
 
-echo html_writer::end_tag('div'); // results-details
+echo html_writer::end_tag('div'); // end stats-container
 
 // Phản hồi
 if (!empty($submission->feedback)) {
-    echo html_writer::start_tag('div', array('class' => 'feedback-container'));
-    echo html_writer::tag('h4', get_string('feedback', 'devcode'));
-    echo html_writer::tag('p', $submission->feedback);
+    echo html_writer::start_tag('div', array('class' => 'devcode-feedback-container'));
+    echo html_writer::tag('h4', get_string('feedback', 'devcode'), array('class' => 'devcode-feedback-title'));
+    echo html_writer::tag('div', $submission->feedback, array('class' => 'devcode-feedback-content'));
     echo html_writer::end_tag('div');
 }
 
-echo html_writer::end_tag('div'); // grading-results
+echo html_writer::end_tag('div'); // end card-body
+echo html_writer::end_tag('div'); // end grading-results-card
 
-// Code đã nộp
-echo html_writer::start_tag('div', array('class' => 'submitted-code'));
-echo html_writer::tag('h4', get_string('submittedcode', 'devcode'));
-echo html_writer::tag('pre', s($submission->code), array('class' => 'code-display'));
+// Card mã nguồn đã nộp
+echo html_writer::start_tag('div', array('class' => 'devcode-card submitted-code-card'));
+echo html_writer::start_tag('div', array('class' => 'devcode-card-header'));
+echo html_writer::tag('h3', get_string('submittedcode', 'devcode'));
 echo html_writer::end_tag('div');
 
-// Chi tiết kết quả từng test case
+echo html_writer::start_tag('div', array('class' => 'devcode-card-body'));
+echo html_writer::tag('pre', html_writer::tag('code', s($submission->code)), array('class' => 'devcode-code-display'));
+echo html_writer::end_tag('div'); // end card-body
+echo html_writer::end_tag('div'); // end submitted-code-card
+
+// Card kết quả chi tiết các test case
 if (!empty($test_results)) {
-    echo html_writer::start_tag('div', array('class' => 'testcase-results'));
-    echo html_writer::tag('h4', get_string('detailedresults', 'devcode'));
-    
-    echo html_writer::start_tag('table', array('class' => 'generaltable testcase-results-table'));
+    echo html_writer::start_tag('div', array('class' => 'devcode-card testcase-results-card'));
+    echo html_writer::start_tag('div', array('class' => 'devcode-card-header'));
+    echo html_writer::tag('h3', get_string('detailedresults', 'devcode'));
+    echo html_writer::end_tag('div');
+
+    echo html_writer::start_tag('div', array('class' => 'devcode-card-body testcase-table-container'));
+    echo html_writer::start_tag('table', array('class' => 'devcode-testcase-table'));
     echo html_writer::start_tag('thead');
     echo html_writer::start_tag('tr');
     echo html_writer::tag('th', get_string('testcaseinput', 'devcode'));
@@ -219,59 +239,395 @@ if (!empty($test_results)) {
     
     echo html_writer::start_tag('tbody');
     foreach ($test_results as $result) {
-        $testcase = $DB->get_record('devcode_testcases', array('id' => $result->testcaseid));
+        // Thêm debugging chi tiết
+        debugging("Looking for testcase with ID: {$result->testcaseid}, SubmissionID: {$result->submissionid}", DEBUG_DEVELOPER);
         
-        echo html_writer::start_tag('tr', $result->passed ? array('class' => 'success-row') : array('class' => 'error-row'));
+        // Thay đổi cách query để tìm kiếm test case chính xác hơn
+        $testcase = $DB->get_record_sql(
+            "SELECT * FROM {devcode_testcases} WHERE id = ?", 
+            [$result->testcaseid]
+        );
         
-        // Kiểm tra testcase có tồn tại không
-        $input_value = ($testcase) ? s($testcase->input) : get_string('notfound', 'devcode');
-        $output_value = ($testcase) ? s($testcase->output) : get_string('notfound', 'devcode');
+        $row_class = $result->passed ? 'devcode-testcase-success' : 'devcode-testcase-failed';
+        echo html_writer::start_tag('tr', array('class' => $row_class));
         
-        echo html_writer::tag('td', $input_value, array('class' => 'testcase-input'));
-        echo html_writer::tag('td', $output_value, array('class' => 'testcase-output'));
-        echo html_writer::tag('td', s($result->output), array('class' => 'your-output'));
+        // Kiểm tra testcase có tồn tại không và hiển thị thông báo chi tiết hơn
+        $input_value = ($testcase && isset($testcase->input)) ? s($testcase->input) : '(Không tìm thấy dữ liệu - ID: ' . $result->testcaseid . ')';
+        $output_value = ($testcase && isset($testcase->output)) ? s($testcase->output) : '(Không tìm thấy dữ liệu - ID: ' . $result->testcaseid . ')';
+        
+        echo html_writer::tag('td', html_writer::tag('pre', $input_value), array('class' => 'devcode-testcase-input'));
+        echo html_writer::tag('td', html_writer::tag('pre', $output_value), array('class' => 'devcode-testcase-output'));
+        echo html_writer::tag('td', html_writer::tag('pre', s($result->output)), array('class' => 'devcode-testcase-youroutput'));
         
         // Kết quả
         $result_text = $result->passed ? get_string('passed', 'devcode') : get_string('failed', 'devcode');
-        $result_class = $result->passed ? 'passed' : 'failed';
-        echo html_writer::tag('td', html_writer::tag('span', $result_text, array('class' => $result_class)));
+        $result_class = $result->passed ? 'devcode-result-passed' : 'devcode-result-failed';
+        echo html_writer::tag('td', html_writer::tag('span', $result_text, array('class' => $result_class)), 
+            array('class' => 'devcode-testcase-result'));
         
         echo html_writer::end_tag('tr');
         
         // Hiển thị thông báo lỗi nếu có
         if (!$result->passed && !empty($result->error_message)) {
-            echo html_writer::start_tag('tr', array('class' => 'error-message-row'));
-            echo html_writer::tag('td', get_string('errormessage', 'devcode') . ':', array('class' => 'error-label'));
-            echo html_writer::tag('td', s($result->error_message), array('colspan' => '3', 'class' => 'error-message'));
+            echo html_writer::start_tag('tr', array('class' => 'devcode-testcase-error-row'));
+            echo html_writer::tag('td', get_string('errormessage', 'devcode') . ':', array('class' => 'devcode-error-label'));
+            echo html_writer::tag('td', html_writer::tag('pre', s($result->error_message)), 
+                array('colspan' => '3', 'class' => 'devcode-testcase-error-message'));
             echo html_writer::end_tag('tr');
         }
     }
     echo html_writer::end_tag('tbody');
     echo html_writer::end_tag('table');
-    
-    echo html_writer::end_tag('div'); // testcase-results
+    echo html_writer::end_tag('div'); // end card-body
+    echo html_writer::end_tag('div'); // end testcase-results-card
 }
 
-echo html_writer::end_tag('div'); // results-container
+echo html_writer::end_tag('div'); // end devcode-results-container
 
-// Nút trở về và nộp lại bài
-echo html_writer::start_tag('div', array('class' => 'action-buttons'));
+// Nút điều hướng
+echo html_writer::start_tag('div', array('class' => 'devcode-action-buttons'));
 echo html_writer::link(
     new \moodle_url('/mod/devcode/view.php', array('id' => $cm->id)),
     get_string('backtocourse', 'devcode'),
-    array('class' => 'btn btn-secondary')
+    array('class' => 'btn btn-secondary devcode-action-btn')
 );
 
 // Nút nộp lại bài (nếu thời gian cho phép)
 if (has_capability('mod/devcode:submit', $context) && 
     (!$devcode->duedate || $devcode->duedate > time())) {
-    echo ' ';
     echo html_writer::link(
         new \moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)),
         get_string('resubmit', 'devcode'),
-        array('class' => 'btn btn-primary')
+        array('class' => 'btn btn-primary devcode-action-btn')
     );
 }
-echo html_writer::end_tag('div'); // action-buttons
+echo html_writer::end_tag('div'); // end action-buttons
+
+echo html_writer::end_tag('div'); // end devcode-results-page
+
+// Custom inline CSS để làm đẹp hơn
+echo html_writer::start_tag('style');
+echo '
+.devcode-results-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.devcode-results-header {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e7e7e7;
+    padding-bottom: 16px;
+}
+
+.devcode-assignment-title {
+    font-size: 28px;
+    margin: 0;
+    color: #333;
+}
+
+.devcode-results-subtitle {
+    color: #666;
+    font-size: 16px;
+    margin-top: 5px;
+}
+
+.devcode-results-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.devcode-card {
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    overflow: hidden;
+    background-color: white;
+}
+
+.devcode-card-header {
+    background-color: #f5f7fa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e7e7e7;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.devcode-card-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #404d59;
+}
+
+.devcode-card-header.with-score {
+    background-color: #f8faff;
+}
+
+.devcode-score {
+    font-size: 24px;
+    font-weight: 700;
+    color: #3a7eba;
+    padding: 5px 15px;
+    background-color: rgba(58, 126, 186, 0.1);
+    border-radius: 20px;
+}
+
+.devcode-card-body {
+    padding: 20px;
+}
+
+.devcode-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.devcode-info-item {
+    margin-bottom: 10px;
+}
+
+.devcode-info-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.devcode-info-value {
+    font-size: 16px;
+    color: #333;
+}
+
+.devcode-status-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-submitted {
+    background-color: #e7f1ff;
+    color: #0d6efd;
+}
+
+.status-graded {
+    background-color: #d1f2ea;
+    color: #198754;
+}
+
+.status-failed {
+    background-color: #fee2e2;
+    color: #dc3545;
+}
+
+.status-error {
+    background-color: #fee2e2;
+    color: #dc3545;
+}
+
+.devcode-error-message {
+    margin-top: 15px;
+    background-color: #fee2e2;
+    border-left: 4px solid #dc3545;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.devcode-error-heading {
+    font-weight: 600;
+    color: #dc3545;
+    margin-bottom: 10px;
+}
+
+.devcode-error-details {
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow: auto;
+    margin: 0;
+    font-size: 14px;
+}
+
+.devcode-stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.devcode-stats-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.devcode-stats-value {
+    font-size: 16px;
+    color: #333;
+}
+
+.devcode-perfect-score {
+    color: #198754;
+    font-weight: 600;
+}
+
+.devcode-progress-container {
+    height: 10px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.devcode-progress-bar {
+    height: 100%;
+    border-radius: 5px;
+}
+
+.devcode-progress-perfect {
+    background-color: #198754;
+}
+
+.devcode-progress-good {
+    background-color: #0d6efd;
+}
+
+.devcode-progress-poor {
+    background-color: #ffc107;
+}
+
+.devcode-feedback-container {
+    margin-top: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.devcode-feedback-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.devcode-feedback-content {
+    font-size: 15px;
+    line-height: 1.5;
+    color: #333;
+}
+
+.devcode-code-display {
+    background-color: #22272e;
+    color: #adbac7;
+    padding: 15px;
+    border-radius: 6px;
+    margin: 0;
+    max-height: 400px;
+    overflow: auto;
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.devcode-testcase-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.devcode-testcase-table th {
+    background-color: #f8f9fa;
+    padding: 12px;
+    text-align: left;
+    border-bottom: 2px solid #e9ecef;
+    font-weight: 600;
+}
+
+.devcode-testcase-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: top;
+}
+
+.devcode-testcase-table pre {
+    margin: 0;
+    max-height: 100px;
+    overflow: auto;
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+}
+
+.devcode-testcase-success {
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.devcode-testcase-failed {
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.devcode-result-passed {
+    display: inline-block;
+    padding: 4px 8px;
+    background-color: #d1f2ea;
+    color: #198754;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.devcode-result-failed {
+    display: inline-block;
+    padding: 4px 8px;
+    background-color: #fee2e2;
+    color: #dc3545;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.devcode-testcase-error-row {
+    background-color: rgba(220, 53, 69, 0.03);
+}
+
+.devcode-testcase-error-message pre {
+    color: #dc3545;
+    background-color: #fff3f3;
+}
+
+.devcode-action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-start;
+}
+
+.devcode-action-btn {
+    padding: 8px 16px;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .devcode-info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .devcode-stats-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .devcode-testcase-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+';
+echo html_writer::end_tag('style');
 
 echo $OUTPUT->footer(); 

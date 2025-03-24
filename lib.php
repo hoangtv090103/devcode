@@ -366,7 +366,10 @@ function devcode_get_supported_languages()
 // Hàm gửi bài nộp đến backend để chấm điểm
 function devcode_send_to_api($submissionid)
 {
-    global $DB, $CFG;
+    global $CFG, $DB;
+
+    // Debugging to verify function entry point
+    debugging('Starting devcode_send_to_api with submissionid: ' . $submissionid, DEBUG_DEVELOPER);
 
     // Đảm bảo config đã được load
     if (!isset($CFG->devcode)) {
