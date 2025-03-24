@@ -58,9 +58,51 @@ $PAGE->activityheader->set_attrs($activityheader);
 // Thêm CSS cho code editor
 $PAGE->requires->css('/mod/devcode/styles.css');
 
-// Load JavaScript modules
-$PAGE->requires->js_call_amd('mod_devcode/code_editor', 'init');
-$PAGE->requires->js_call_amd('mod_devcode/tabs', 'init');
+// Load JavaScript modules - bỏ comment dòng này nếu cần dùng lại sau khi đã build
+// $PAGE->requires->js_call_amd('mod_devcode/code_editor', 'init');
+// $PAGE->requires->js_call_amd('mod_devcode/tabs', 'init');
+
+// Thêm JavaScript inline tạm thời thay thế
+$PAGE->requires->js_init_code("
+    require(['jquery'], function($) {
+        // Code Editor functionality
+        $('.code-editor').on('keydown', function(e) {
+            if (e.keyCode === 9) { // Tab key
+                e.preventDefault();
+                
+                // Thêm khoảng cách tab (4 dấu cách)
+                var start = this.selectionStart;
+                var end = this.selectionEnd;
+                
+                // Thay thế vị trí con trỏ bằng tab
+                this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                
+                // Đặt lại vị trí con trỏ
+                this.selectionStart = this.selectionEnd = start + 4;
+            }
+        });
+        
+        // Tabs functionality
+        $('.tab-btn').on('click', function() {
+            var targetTab = $(this).data('tab');
+            
+            // Update active tab button
+            $('.tab-btn').removeClass('active');
+            $(this).addClass('active');
+            
+            // Hide all tab panes and show the target one
+            $('.tab-pane').removeClass('active');
+            $('#' + targetTab).addClass('active');
+            
+            // Add/remove classes for conditional styling
+            if (targetTab === 'code-tab') {
+                $('.responsive-layout').addClass('code-tab-active').removeClass('file-tab-active');
+            } else {
+                $('.responsive-layout').addClass('file-tab-active').removeClass('code-tab-active');
+            }
+        });
+    });
+");
 
 // Kiểm tra nếu còn thời gian nộp bài
 if (!empty($devcode->duedate) && $devcode->duedate < time()) {
@@ -89,12 +131,34 @@ $formdata = array(
 
 $mform = new mod_devcode_submission_form(null, $formdata);
 
+// Thêm debugging để xác định vấn đề
+$was_posted = $mform->is_submitted();
+$was_cancelled = $mform->is_cancelled();
+$data_validated = $mform->is_validated();
+
+if ($was_posted) {
+    debugging('Form was submitted!', DEBUG_DEVELOPER);
+} else {
+    debugging('Form was not submitted.', DEBUG_DEVELOPER);
+}
+
+if ($was_cancelled) {
+    debugging('Form was cancelled.', DEBUG_DEVELOPER);
+}
+
+if ($data_validated) {
+    debugging('Form data was validated.', DEBUG_DEVELOPER);
+} else if ($was_posted) {
+    debugging('Form data was not validated.', DEBUG_DEVELOPER);
+}
+
 // Xử lý form khi được submit
 if ($mform->is_cancelled()) {
     // Nếu người dùng hủy form
     redirect(new \moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
 } else if ($fromform = $mform->get_data()) {
     // Nếu form được submit thành công
+    debugging('Form data received: ' . print_r($fromform, true), DEBUG_DEVELOPER);
 
     // Chuẩn bị dữ liệu bài nộp
     $now = time();
@@ -200,10 +264,8 @@ echo $OUTPUT->header();
 echo html_writer::tag('h1', format_string($devcode->name), array('class' => 'devcode-assignment-title'));
 echo html_writer::tag('hr', '', array('class' => 'devcode-assignment-divider'));
 // Hiển thị ngôn ngữ lập trình được sử dụng
-$languages = devcode_get_supported_languages();
-$language_name = isset($languages[$devcode->language]) ?
-    $languages[$devcode->language] :
-    $devcode->language;
+$language_name = devcode_get_language_by_id($devcode->language);
+
     
 // Replace simple paragraph with styled highlighted container
 echo html_writer::start_tag('div', array('class' => 'devcode-language-highlight'));

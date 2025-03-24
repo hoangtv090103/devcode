@@ -23,7 +23,7 @@
  */
 
 require_once('../../config.php');
-require_once(dirname(__FILE__).'/lib.php');
+require_once(dirname(__FILE__) . '/lib.php');
 
 // Course module id
 $id = required_param('id', PARAM_INT);
@@ -55,26 +55,28 @@ $PAGE->activityheader->set_attrs($activityheader);
 
 // Get visible test cases for this assignment
 $testcases = $DB->get_records_select(
-    'devcode_testcases', 
+    'devcode_testcases',
     'devcodeid = :devcodeid AND (visible_to_student = 1 OR :canmanage = 1)',
     array('devcodeid' => $devcode->id, 'canmanage' => $canmanage ? 1 : 0),
     'id ASC'
 );
 
 // Check if the user has already submitted - lấy bản ghi mới nhất
-$usersubmissions = $DB->get_records('devcode_submissions', 
-    array('devcodeid' => $devcode->id, 'userid' => $USER->id), 
-    'timemodified DESC, id DESC', '*', 0, 1);
+$usersubmissions = $DB->get_records(
+    'devcode_submissions',
+    array('devcodeid' => $devcode->id, 'userid' => $USER->id),
+    'timemodified DESC, id DESC',
+    '*',
+    0,
+    1
+);
 $usersubmission = reset($usersubmissions); // Lấy bản ghi đầu tiên (mới nhất)
 
 // Start of output
 echo $OUTPUT->header();
 
-$languages = devcode_get_supported_languages();
-$language_name = isset($languages[$devcode->language]) ?
-    $languages[$devcode->language] :
-    $devcode->language;
-    
+$language_name = devcode_get_language_by_id($devcode->language);
+
 // Replace simple paragraph with styled highlighted container
 echo html_writer::start_tag('div', array('class' => 'devcode-language-highlight'));
 echo html_writer::tag('span', $language_name, array('class' => 'devcode-language-value'));
@@ -108,7 +110,7 @@ foreach ($testcases as $testcase) {
 if (!empty($visibletestcases)) {
     echo html_writer::start_tag('div', array('class' => 'testcases visible-testcases'));
     echo html_writer::tag('p', get_string('exampletestcasesintro', 'devcode'));
-    
+
     echo html_writer::start_tag('table', array('class' => 'generaltable'));
     echo html_writer::start_tag('thead');
     echo html_writer::start_tag('tr');
@@ -118,7 +120,7 @@ if (!empty($visibletestcases)) {
     echo html_writer::tag('th', get_string('testcasetimelimit', 'devcode'));
     echo html_writer::end_tag('tr');
     echo html_writer::end_tag('thead');
-    
+
     echo html_writer::start_tag('tbody');
     foreach ($visibletestcases as $testcase) {
         echo html_writer::start_tag('tr');
@@ -138,7 +140,7 @@ if (!empty($visibletestcases)) {
 // Display hidden test cases (only for instructors)
 if ($canmanage && !empty($hiddentestcases)) {
     echo $OUTPUT->heading(get_string('hiddentestcases', 'devcode'), 3);
-    
+
     echo html_writer::start_tag('div', array('class' => 'testcases hidden-testcases'));
     echo html_writer::start_tag('table', array('class' => 'generaltable'));
     echo html_writer::start_tag('thead');
@@ -149,7 +151,7 @@ if ($canmanage && !empty($hiddentestcases)) {
     echo html_writer::tag('th', get_string('testcasetimelimit', 'devcode'));
     echo html_writer::end_tag('tr');
     echo html_writer::end_tag('thead');
-    
+
     echo html_writer::start_tag('tbody');
     foreach ($hiddentestcases as $testcase) {
         echo html_writer::start_tag('tr');
@@ -168,7 +170,7 @@ if ($canmanage && !empty($hiddentestcases)) {
 if ($cansubmit) {
     echo html_writer::start_tag('div', array('class' => 'submitbutton'));
     $submiturl = new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id));
-    
+
     $buttontext = $usersubmission ? get_string('editsubmission', 'devcode') : get_string('submitassignment', 'devcode');
     echo html_writer::link($submiturl, $buttontext, array('class' => 'btn btn-primary'));
     echo html_writer::end_tag('div');
@@ -178,14 +180,14 @@ if ($cansubmit) {
 if ($canmanage) {
     echo html_writer::start_tag('div', array('class' => 'teacheroptions'));
     echo html_writer::start_tag('ul');
-    
+
     // Link to view all submissions
     $viewsubmissionsurl = new moodle_url('/mod/devcode/submissions.php', array('id' => $cm->id));
     echo html_writer::tag('li', html_writer::link($viewsubmissionsurl, get_string('viewallsubmissions', 'devcode')));
-    
+
     echo html_writer::end_tag('ul');
     echo html_writer::end_tag('div');
 }
 
 // Finish the page
-echo $OUTPUT->footer(); 
+echo $OUTPUT->footer();

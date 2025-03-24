@@ -167,34 +167,27 @@ class mod_devcode_submission_form extends moodleform
         // Thêm data-language để hỗ trợ syntax highlighting bằng JavaScript sau này
         $attributes['data-language'] = strtolower($devcode->language);
 
-        // Instead of using Moodle's form API which generates the empty label structure
-        // Use direct HTML for the textarea element
-        $code_value = '';
-        if ($submission && !empty($submission->code)) {
-            $code_value = s($submission->code);
-        } else {
-            $code_value = s($this->get_default_code_template($devcode->language));
-        }
-        
         // Create attributes string for the textarea
         $attr_string = '';
         foreach ($attributes as $key => $value) {
             $attr_string .= $key . '="' . s($value) . '" ';
         }
         
-        $mform->addElement('html', '
-            <div class="custom-code-editor">
-                <div class="code-editor-wrapper">
-                    <div class="line-numbers" id="line-numbers"></div>
-                    <textarea name="code" id="id_code" ' . $attr_string . '>' . $code_value . '</textarea>
-                </div>
-                <div class="form-control-feedback invalid-feedback" id="id_error_code"></div>
-            </div>
-        ');
+        // Thay thế custom textarea bằng textarea từ Moodle
+        $mform->addElement('textarea', 'code', '', $attributes);
         
-        // Add hidden element to maintain form structure
-        $mform->addElement('hidden', 'code_hidden', '');
-        $mform->setType('code_hidden', PARAM_RAW);
+        // Đặt giá trị mặc định cho trường code
+        if ($submission && !empty($submission->code)) {
+            $mform->setDefault('code', $submission->code);
+        } else {
+            $mform->setDefault('code', $this->get_default_code_template($devcode->language));
+        }
+        
+        // Thiết lập kiểu dữ liệu
+        $mform->setType('code', PARAM_RAW);
+        
+        // Thêm rule cho vấn đề validation
+        $mform->addRule('code', get_string('codeempty', 'devcode'), 'required', null, 'client');
 
         // Đóng tab code và mở tab file
         $mform->addElement('html', '
@@ -488,6 +481,45 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("id_code").addEventListener("scroll", function() {
         document.getElementById("line-numbers").scrollTop = this.scrollTop;
     });
+
+    // Xử lý sự kiện submit form
+    const form = document.querySelector("form.mform");
+    
+    if (form) {
+        form.addEventListener("submit", function(e) {
+            // Đảm bảo nội dung từ code editor được gửi đi
+            const codeEditor = document.getElementById("id_code");
+            if (codeEditor) {
+                // Nếu đang ở tab code, kiểm tra nội dung code
+                if (document.getElementById("code-tab").classList.contains("active")) {
+                    // Kiểm tra nếu code rỗng thì ngăn form submit và hiển thị lỗi
+                    if (codeEditor.value.trim() === "") {
+                        e.preventDefault();
+                        const errorElement = document.getElementById("id_error_code");
+                        if (errorElement) {
+                            errorElement.textContent = "Code không được để trống";
+                            errorElement.style.display = "block";
+                        }
+                        return false;
+                    }
+                }
+                
+                // Lưu nội dung code vào trường code
+                const codeField = document.createElement("input");
+                codeField.type = "hidden";
+                codeField.name = "code";
+                codeField.value = codeEditor.value;
+                form.appendChild(codeField);
+            }
+            
+            // Disable nút submit để tránh click nhiều lần
+            const submitButton = form.querySelector("input[type=\"submit\"]");
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.value = "Đang xử lý...";
+            }
+        });
+    }
 });
 </script>
         ');
@@ -542,7 +574,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Kiểm tra xem code có rỗng không
         if (empty(trim($data['code']))) {
-            $errors['code_hidden'] = get_string('codeempty', 'devcode');
+            $errors['code'] = get_string('codeempty', 'devcode');
         }
 
         return $errors;

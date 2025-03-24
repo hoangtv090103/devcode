@@ -1,11 +1,11 @@
 <?php
 defined('MOODLE_INTERNAL') || die();
 
-$string['modulename'] = 'DevCode Programming';
-$string['modulenameplural'] = 'DevCode Programming';
-$string['modulename_help'] = 'The DevCode Programming module allows instructors to create programming assignments that are automatically graded.';
-$string['pluginname'] = 'DevCode Programming';
-$string['pluginadministration'] = 'DevCode administration';
+$string['modulename'] = 'Code';
+$string['modulenameplural'] = 'Code';
+$string['modulename_help'] = 'The Code module allows instructors to create programming assignments that are automatically graded.';
+$string['pluginname'] = 'Code';
+$string['pluginadministration'] = 'Code administration';
 
 // Form strings
 $string['assignmentname'] = 'Name';
@@ -191,4 +191,6 @@ $string['secondsago'] = 'seconds ago';
 $string['minutesago'] = 'minutes ago';
 $string['hoursago'] = 'hours ago';
 $string['daysago'] = 'days ago';
+
+$string['notfound'] = 'Not found';
 ?> 

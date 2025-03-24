@@ -222,8 +222,13 @@ if (!empty($test_results)) {
         $testcase = $DB->get_record('devcode_testcases', array('id' => $result->testcaseid));
         
         echo html_writer::start_tag('tr', $result->passed ? array('class' => 'success-row') : array('class' => 'error-row'));
-        echo html_writer::tag('td', s($testcase->input), array('class' => 'testcase-input'));
-        echo html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
+        
+        // Kiểm tra testcase có tồn tại không
+        $input_value = ($testcase) ? s($testcase->input) : get_string('notfound', 'devcode');
+        $output_value = ($testcase) ? s($testcase->output) : get_string('notfound', 'devcode');
+        
+        echo html_writer::tag('td', $input_value, array('class' => 'testcase-input'));
+        echo html_writer::tag('td', $output_value, array('class' => 'testcase-output'));
         echo html_writer::tag('td', s($result->output), array('class' => 'your-output'));
         
         // Kết quả

@@ -1,10 +1,10 @@
 <?php
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->libdir.'/moodlelib.php');
-require_once($CFG->libdir.'/adminlib.php');
-require_once($CFG->dirroot.'/course/lib.php');
-require_once($CFG->dirroot.'/lib/accesslib.php');
+require_once($CFG->libdir . '/moodlelib.php');
+require_once($CFG->libdir . '/adminlib.php');
+require_once($CFG->dirroot . '/course/lib.php');
+require_once($CFG->dirroot . '/lib/accesslib.php');
 
 /**
  * Returns the information on whether the module supports a feature
@@ -13,8 +13,9 @@ require_once($CFG->dirroot.'/lib/accesslib.php');
  * @param string $feature FEATURE_xx constant for requested feature
  * @return mixed true if the feature is supported, null if unknown
  */
-function devcode_supports($feature) {
-    switch($feature) {
+function devcode_supports($feature)
+{
+    switch ($feature) {
         case FEATURE_MOD_INTRO:
             return true;
         case FEATURE_GRADE_HAS_GRADE:
@@ -39,39 +40,40 @@ function devcode_supports($feature) {
  * @param mod_devcode_mod_form $mform
  * @return int new devcode instance id
  */
-function devcode_add_instance($data, $mform = null) {
+function devcode_add_instance($data, $mform = null)
+{
     global $DB;
 
     // Xử lý dữ liệu trước khi lưu
     $data->timemodified = time();
     $data->timecreated = time();
-    
+
     // Đảm bảo programming_language là chuỗi
     if (isset($data->programming_language)) {
         $data->programming_language = strval($data->programming_language);
     }
-    
+
     // Xử lý dữ liệu từ trình soạn thảo (editor)
     if (isset($data->intro) && is_array($data->intro)) {
         $data->intro = $data->intro['text'];
     }
-    
+
     if (isset($data->introformat) && is_array($data->introformat)) {
         $data->introformat = FORMAT_HTML;
     } else if (!isset($data->introformat)) {
         $data->introformat = FORMAT_HTML;
     }
-    
+
     // Chèn bản ghi
     $data->id = $DB->insert_record('devcode', $data);
-    
+
     // Lưu test cases
     if (isset($data->testcase_input) && is_array($data->testcase_input)) {
         for ($i = 0; $i < count($data->testcase_input); $i++) {
             if (empty($data->testcase_input[$i]) && empty($data->testcase_output[$i])) {
                 continue; // Bỏ qua test case trống
             }
-            
+
             $testcase = new stdClass();
             $testcase->devcodeid = $data->id;
             $testcase->input = $data->testcase_input[$i];
@@ -81,7 +83,7 @@ function devcode_add_instance($data, $mform = null) {
             $testcase->visible_to_student = isset($data->testcase_visible[$i]) ? intval($data->testcase_visible[$i]) : 0;
             $testcase->timecreated = time();
             $testcase->timemodified = time();
-            
+
             $DB->insert_record('devcode_testcases', $testcase);
         }
     }
@@ -96,23 +98,24 @@ function devcode_add_instance($data, $mform = null) {
  * @param mod_devcode_mod_form $mform
  * @return bool true
  */
-function devcode_update_instance($data, $mform = null) {
+function devcode_update_instance($data, $mform = null)
+{
     global $DB;
 
     // Xử lý dữ liệu trước khi cập nhật
     $data->timemodified = time();
     $data->id = $data->instance;
-    
+
     // Đảm bảo programming_language là chuỗi
     if (isset($data->programming_language)) {
         $data->programming_language = strval($data->programming_language);
     }
-    
+
     // Xử lý dữ liệu từ trình soạn thảo (editor)
     if (isset($data->intro) && is_array($data->intro)) {
         $data->intro = $data->intro['text'];
     }
-    
+
     if (isset($data->introformat) && is_array($data->introformat)) {
         $data->introformat = FORMAT_HTML;
     } else if (!isset($data->introformat)) {
@@ -120,17 +123,17 @@ function devcode_update_instance($data, $mform = null) {
     }
 
     $DB->update_record('devcode', $data);
-    
+
     // Xóa tất cả test cases hiện tại
     $DB->delete_records('devcode_testcases', array('devcodeid' => $data->id));
-    
+
     // Thêm test cases mới
     if (isset($data->testcase_input) && is_array($data->testcase_input)) {
         for ($i = 0; $i < count($data->testcase_input); $i++) {
             if (empty($data->testcase_input[$i]) && empty($data->testcase_output[$i])) {
                 continue; // Bỏ qua test case trống
             }
-            
+
             $testcase = new stdClass();
             $testcase->devcodeid = $data->id;
             $testcase->input = $data->testcase_input[$i];
@@ -140,7 +143,7 @@ function devcode_update_instance($data, $mform = null) {
             $testcase->visible_to_student = isset($data->testcase_visible[$i]) ? intval($data->testcase_visible[$i]) : 0;
             $testcase->timecreated = time();
             $testcase->timemodified = time();
-            
+
             $DB->insert_record('devcode_testcases', $testcase);
         }
     }
@@ -154,7 +157,8 @@ function devcode_update_instance($data, $mform = null) {
  * @param int $id
  * @return bool true
  */
-function devcode_delete_instance($id) {
+function devcode_delete_instance($id)
+{
     global $DB;
 
     if (!$devcode = $DB->get_record('devcode', array('id' => $id))) {
@@ -163,10 +167,10 @@ function devcode_delete_instance($id) {
 
     // Delete all submissions
     $DB->delete_records('devcode_submissions', array('devcodeid' => $id));
-    
+
     // Delete all test cases
     $DB->delete_records('devcode_testcases', array('devcodeid' => $id));
-    
+
     // Delete the devcode instance
     $DB->delete_records('devcode', array('id' => $id));
 
@@ -179,7 +183,8 @@ function devcode_delete_instance($id) {
  * @param stdClass $devcode null means all devcode instances
  * @param int $userid specific user only, 0 means all
  */
-function devcode_update_grades($devcode = null, $userid = 0) {
+function devcode_update_grades($devcode = null, $userid = 0)
+{
     global $DB, $USER;
 
     if ($devcode !== null) {
@@ -197,17 +202,17 @@ function devcode_update_grades($devcode = null, $userid = 0) {
     // Xây dựng mệnh đề WHERE thủ công thay vì sử dụng sql_where
     $whereclause = '';
     $params = array();
-    
+
     if (!empty($where)) {
         $conditions = array();
         $i = 0;
-        
+
         foreach ($where as $field => $value) {
             $conditions[] = "$field = :param$i";
             $params["param$i"] = $value;
             $i++;
         }
-        
+
         $whereclause = ' WHERE ' . implode(' AND ', $conditions);
     }
 
@@ -243,7 +248,8 @@ function devcode_update_grades($devcode = null, $userid = 0) {
  * @param stdClass $module
  * @param cm_info $modinfo
  */
-function devcode_extend_navigation(navigation_node $navref, stdClass $course, stdClass $module, cm_info $modinfo) {
+function devcode_extend_navigation(navigation_node $navref, stdClass $course, stdClass $module, cm_info $modinfo)
+{
     global $CFG, $DB;
 
     // Kiểm tra xem module id có tồn tại không
@@ -273,7 +279,8 @@ function devcode_extend_navigation(navigation_node $navref, stdClass $course, st
  * @param settings_navigation $settingsnav {@link settings_navigation}
  * @param navigation_node $devcodenode {@link navigation_node}
  */
-function devcode_extend_settings_navigation(settings_navigation $settingsnav, navigation_node $devcodenode) {
+function devcode_extend_settings_navigation(settings_navigation $settingsnav, navigation_node $devcodenode)
+{
     global $PAGE, $CFG, $DB;
 
     // Kiểm tra xem $PAGE->cm có tồn tại không
@@ -298,20 +305,21 @@ function devcode_extend_settings_navigation(settings_navigation $settingsnav, na
  * 
  * @return array Array of language id => language name
  */
-function devcode_get_supported_languages() {
+function devcode_get_supported_languages()
+{
     global $CFG;
-    
+
     // Đảm bảo config đã được load
     if (!isset($CFG->devcode)) {
         require_once(dirname(__FILE__) . '/config.php');
     }
-    
+
     $api_base = $CFG->devcode['api_base_url'];
     $languages_endpoint = $CFG->devcode['api_endpoints']['languages'];
     $url = $api_base . $languages_endpoint;
-    
+
     $languages = array();
-    
+
     // Thử sử dụng file_get_contents với stream context để xử lý lỗi
     $context = stream_context_create([
         'http' => [
@@ -320,9 +328,9 @@ function devcode_get_supported_languages() {
             'ignore_errors' => true
         ]
     ]);
-    
+
     $response = @file_get_contents($url, false, $context);
-    
+
     // Kiểm tra nếu API không hoạt động, trả về danh sách mặc định
     if ($response === false) {
         debugging('Không thể kết nối đến API ngôn ngữ. Sử dụng danh sách mặc định.', DEBUG_DEVELOPER);
@@ -333,7 +341,7 @@ function devcode_get_supported_languages() {
             '63' => 'JavaScript (Node.js 12.14.0)'
         );
     }
-    
+
     $data = json_decode($response, true);
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
         debugging('Định dạng JSON không hợp lệ từ API. Sử dụng danh sách mặc định.', DEBUG_DEVELOPER);
@@ -344,45 +352,46 @@ function devcode_get_supported_languages() {
             '63' => 'JavaScript (Node.js 12.14.0)'
         );
     }
-    
+
     foreach ($data as $lang) {
         if (isset($lang['id']) && isset($lang['name'])) {
             // Chuyển ID thành chuỗi để tránh lỗi khi lưu vào database
             $languages[strval($lang['id'])] = $lang['name'];
         }
     }
-    
+
     return $languages;
 }
 
 // Hàm gửi bài nộp đến backend để chấm điểm
-function devcode_send_to_api($submissionid) {
+function devcode_send_to_api($submissionid)
+{
     global $DB, $CFG;
-    
+
     // Đảm bảo config đã được load
     if (!isset($CFG->devcode)) {
         require_once(dirname(__FILE__) . '/config.php');
     }
-    
+
     // Lấy thông tin bài nộp
     $submission = $DB->get_record('devcode_submissions', array('id' => $submissionid), '*', MUST_EXIST);
     $devcode = $DB->get_record('devcode', array('id' => $submission->devcodeid), '*', MUST_EXIST);
-    
+
     // Lấy tất cả test cases của bài tập
     $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC');
-    
+
     if (empty($testcases)) {
         debugging('Không tìm thấy test cases nào cho bài tập này.', DEBUG_DEVELOPER);
         return false;
     }
-    
+
     // Xác định ngôn ngữ lập trình - ưu tiên sử dụng ngôn ngữ từ assignment nếu có
     $language = $submission->language;
     if (!empty($devcode->language)) {
         $language = $devcode->language;
         debugging('Sử dụng ngôn ngữ lập trình từ assignment: ' . $language, DEBUG_DEVELOPER);
     }
-    
+
     // Chuẩn bị dữ liệu để gửi lên API
     $api_data = array(
         'assignment_id' => $devcode->id,
@@ -390,34 +399,34 @@ function devcode_send_to_api($submissionid) {
         'code' => $submission->code,
         'language' => $language
     );
-    
+
     // Gửi bài nộp lên API
     $api_base = $CFG->devcode['api_base_url'];
     $submissions_endpoint = $CFG->devcode['api_endpoints']['submissions'];
     $submission_url = $api_base . $submissions_endpoint;
-    
+
     $submission_response = devcode_api_request($submission_url, 'POST', $api_data);
-    
+
     if (!$submission_response || isset($submission_response['error'])) {
         debugging('Lỗi khi gửi bài nộp lên API: ' . json_encode($submission_response), DEBUG_DEVELOPER);
-        
+
         // Cập nhật trạng thái lỗi
         $submission->status = 'error';
         $submission->feedback = isset($submission_response['error']) ? $submission_response['error'] : 'Không thể kết nối đến dịch vụ chấm điểm.';
         $DB->update_record('devcode_submissions', $submission);
-        
+
         // Kiểm tra nếu mô phỏng được bật
         if ($CFG->devcode['api_mock_enabled']) {
             debugging('Sử dụng mô phỏng do API không khả dụng.', DEBUG_DEVELOPER);
             return false; // Trả về false để kích hoạt mô phỏng
         }
-        
+
         return false;
     }
-    
+
     // Lấy ID bài nộp từ API response
     $api_submission_id = $submission_response['id'];
-    
+
     // Chuẩn bị dữ liệu test cases
     $testcase_data = array('testcases' => array());
     foreach ($testcases as $testcase) {
@@ -429,31 +438,31 @@ function devcode_send_to_api($submissionid) {
             'time_limit' => intval($testcase->time_limit)
         );
     }
-    
+
     // Gửi yêu cầu xử lý và chấm điểm
     $process_url = $api_base . $submissions_endpoint . $api_submission_id . '/process';
     $process_response = devcode_api_request($process_url, 'POST', $testcase_data);
-    
+
     if (!$process_response || isset($process_response['error'])) {
         debugging('Lỗi khi xử lý bài nộp: ' . json_encode($process_response), DEBUG_DEVELOPER);
-        
+
         // Cập nhật trạng thái lỗi
         $submission->status = 'error';
         $submission->feedback = isset($process_response['error']) ? $process_response['error'] : 'Lỗi khi chấm điểm bài nộp.';
         $DB->update_record('devcode_submissions', $submission);
-        
+
         return false;
     }
-    
+
     // Lấy kết quả chi tiết từng test case
     $results_url = $api_base . $submissions_endpoint . $api_submission_id . '/results';
     $results_response = devcode_api_request($results_url, 'GET');
-    
+
     if (!$results_response || isset($results_response['error'])) {
         debugging('Lỗi khi lấy kết quả chi tiết: ' . json_encode($results_response), DEBUG_DEVELOPER);
         return false;
     }
-    
+
     // Xử lý kết quả từng test case
     $total_points = 0;
     $earned_points = 0;
@@ -466,7 +475,7 @@ function devcode_send_to_api($submissionid) {
     $DB->delete_records('devcode_submission_results', array('submissionid' => $submissionid));
 
     // Sắp xếp kết quả theo thứ tự index để đảm bảo đúng thứ tự
-    usort($results_response, function($a, $b) {
+    usort($results_response, function ($a, $b) {
         return $a['index'] - $b['index'];
     });
 
@@ -476,11 +485,11 @@ function devcode_send_to_api($submissionid) {
     foreach ($results_response as $result) {
         $testcase_id = $result['testcase_id'];
         $testcase = $DB->get_record('devcode_testcases', array('id' => $testcase_id));
-        
+
         if ($testcase) {
             $total_points += $testcase->points;
             $earned_points += $result['points_earned'];
-            
+
             // Tạo đối tượng kết quả test
             $test_result = new stdClass();
             $test_result->submissionid = $submissionid;
@@ -491,7 +500,7 @@ function devcode_send_to_api($submissionid) {
             $test_result->execution_time = $result['execution_time'];
             $test_result->memory_used = $result['memory_used'];
             $test_result->timecreated = time();
-            
+
             if ($result['passed'] == 1) {
                 // Nếu test case pass, thêm vào danh sách passed
                 $passed_tests++;
@@ -523,9 +532,9 @@ function devcode_send_to_api($submissionid) {
         $test_result->execution_time = $latest_failed_result['execution_time'];
         $test_result->memory_used = $latest_failed_result['memory_used'];
         $test_result->timecreated = time();
-        
+
         $DB->insert_record('devcode_submission_results', $test_result);
-        
+
         // Lưu thông tin test case bị lỗi để hiển thị feedback
         $failed_test_info = array(
             'testcase_id' => $latest_failed_testcase->id,
@@ -545,10 +554,10 @@ function devcode_send_to_api($submissionid) {
     if ($latest_failed_result !== null) {
         // Nếu có test case bị lỗi, hiển thị thông tin chi tiết
         $submission->status = 'failed';
-        
+
         if ($failed_test_info) {
             $feedback = "Test case failed. ";
-            
+
             if (!empty($failed_test_info['error'])) {
                 // Lỗi runtime/compilation
                 $feedback .= "Error: " . $failed_test_info['error'];
@@ -558,7 +567,7 @@ function devcode_send_to_api($submissionid) {
                 $feedback .= "Input: " . $failed_test_info['input'] . "\n";
                 $feedback .= "Expected output: " . $failed_test_info['expected'] . "\n";
                 $feedback .= "Your output: " . $failed_test_info['actual'];
-                
+
                 if (isset($failed_test_info['result']) && $failed_test_info['result'] != 'Wrong Answer') {
                     $feedback .= "\nResult: " . $failed_test_info['result'];
                 }
@@ -571,37 +580,38 @@ function devcode_send_to_api($submissionid) {
         $submission->status = 'graded';
         $feedback = "Passed $passed_tests out of $total_testcases test cases.";
     }
-    
+
     // Cập nhật thông tin bài nộp
     $submission->score = $final_score;
     $submission->feedback = $feedback;
     $submission->passed_tests = $passed_tests;
     $submission->total_tests = $total_testcases;
     $submission->timemodified = time();
-    
+
     $DB->update_record('devcode_submissions', $submission);
-    
+
     // Cập nhật điểm vào gradebook
     devcode_update_grades($devcode, $submission->userid);
-    
+
     return true;
 }
 
 /**
  * Hàm gửi request đến backend API
  */
-function devcode_api_request($url, $method = 'GET', $data = null) {
+function devcode_api_request($url, $method = 'GET', $data = null)
+{
     global $CFG;
-    
+
     // Đảm bảo config đã được load
     if (!isset($CFG->devcode)) {
         require_once(dirname(__FILE__) . '/config.php');
     }
-    
+
     $timeout = $CFG->devcode['api_timeout'];
     $retry_count = $CFG->devcode['api_retry_count'];
     $retry_wait = $CFG->devcode['api_retry_wait'];
-    
+
     $context = stream_context_create([
         'http' => [
             'method' => $method,
@@ -611,45 +621,45 @@ function devcode_api_request($url, $method = 'GET', $data = null) {
             'ignore_errors' => true
         ]
     ]);
-    
+
     // Thử lại nếu kết nối thất bại
     $attempt = 0;
     $response = false;
-    
+
     while ($attempt <= $retry_count && $response === false) {
         if ($attempt > 0) {
             debugging("Thử kết nối lại lần $attempt...", DEBUG_DEVELOPER);
             sleep($retry_wait);
         }
-        
+
         $response = @file_get_contents($url, false, $context);
         $attempt++;
     }
-    
+
     if ($response === false) {
         // Kiểm tra lỗi HTTP
         $error = error_get_last();
         debugging('Lỗi khi gọi API: ' . ($error['message'] ?? 'Không rõ lỗi'), DEBUG_DEVELOPER);
         return false;
     }
-    
+
     // Lấy HTTP status code
     $status_line = $http_response_header[0];
     preg_match('{HTTP\/\S*\s(\d{3})}', $status_line, $match);
     $status = $match[1];
-    
+
     // Xử lý lỗi
     if ($status >= 400) {
         debugging('API trả về lỗi HTTP ' . $status . ': ' . $response, DEBUG_DEVELOPER);
         return ['error' => 'API error: HTTP ' . $status];
     }
-    
+
     $data = json_decode($response, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
         debugging('Định dạng JSON không hợp lệ từ API: ' . json_last_error_msg(), DEBUG_DEVELOPER);
         return ['error' => 'Invalid JSON response'];
     }
-    
+
     return $data;
 }
 
@@ -659,35 +669,102 @@ function devcode_api_request($url, $method = 'GET', $data = null) {
  * @param int $submissionid ID của bài nộp
  * @return object Đối tượng chứa thông tin về số test cases đã pass và tổng số test cases
  */
-function devcode_get_submission_stats($submissionid) {
+function devcode_get_submission_stats($submissionid)
+{
     global $DB;
-    
+
     $stats = new stdClass();
     $stats->passed_tests = 0;
     $stats->total_tests = 0;
-    
+
     // Lấy thông tin bài nộp
     $submission = $DB->get_record('devcode_submissions', array('id' => $submissionid));
     if (!$submission) {
         return $stats;
     }
-    
+
     // Nếu đã có thông tin cached trong bài nộp
     if (isset($submission->passed_tests) && isset($submission->total_tests)) {
         $stats->passed_tests = $submission->passed_tests;
         $stats->total_tests = $submission->total_tests;
         return $stats;
     }
-    
+
     // Nếu không có thông tin cached, tính toán từ kết quả chi tiết
     $results = $DB->get_records('devcode_submission_results', array('submissionid' => $submissionid));
     $stats->total_tests = count($results);
-    
+
     foreach ($results as $result) {
         if ($result->passed == 1) {
             $stats->passed_tests++;
         }
     }
-    
+
     return $stats;
+}
+
+function devcode_get_language_by_id($language_id)
+{
+    global $CFG;
+
+    // Đảm bảo config đã được load
+    if (!isset($CFG->devcode)) {
+        require_once(dirname(__FILE__) . '/config.php');
+    }
+
+    // Danh sách ngôn ngữ mặc định để fallback
+    $default_languages = array(
+        '71' => 'Python (3.8.1)',
+        '62' => 'Java (JDK 13.0.1)',
+        '54' => 'C++ (GCC 9.2.0)',
+        '63' => 'JavaScript (Node.js 12.14.0)'
+    );
+
+    // Kiểm tra nếu language_id tồn tại trong danh sách mặc định
+    if (isset($default_languages[$language_id])) {
+        return $default_languages[$language_id];
+    }
+
+    // Nếu không tìm thấy trong danh sách mặc định, thử lấy từ API
+    try {
+        $api_base = $CFG->devcode['api_base_url'];
+        $languages_endpoint = $CFG->devcode['api_endpoints']['languages'];
+        $url = $api_base . $languages_endpoint;
+
+        // Thử sử dụng file_get_contents với stream context để xử lý lỗi
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => $CFG->devcode['api_timeout'],
+                'ignore_errors' => true
+            ]
+        ]);
+
+        $response = @file_get_contents($url, false, $context);
+
+        // Kiểm tra nếu API không hoạt động, trả về từ danh sách mặc định
+        if ($response === false) {
+            debugging('Không thể kết nối đến API ngôn ngữ. Sử dụng danh sách mặc định.', DEBUG_DEVELOPER);
+            return $language_id; // Trả về ID nếu không có tên
+        }
+
+        $data = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+            debugging('Định dạng JSON không hợp lệ từ API. Sử dụng ID.', DEBUG_DEVELOPER);
+            return $language_id;
+        }
+
+        // Tìm ngôn ngữ trong danh sách API
+        foreach ($data as $lang) {
+            if (isset($lang['id']) && $lang['id'] == $language_id && isset($lang['name'])) {
+                return $lang['name'];
+            }
+        }
+
+        // Nếu không tìm thấy, trả về ID
+        return $language_id;
+    } catch (Exception $e) {
+        debugging('Lỗi khi lấy thông tin ngôn ngữ: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        return $language_id;
+    }
 }
