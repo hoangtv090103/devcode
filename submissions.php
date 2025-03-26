@@ -112,8 +112,9 @@ if (empty($students)) {
         if ($latestsubmission) {
             // Submission count
             $submissioncount = count($submissions);
-            $submissioncountdisplay = $submissioncount . ' ' . 
-                ($submissioncount > 1 ? get_string('submissionsmultiple', 'mod_devcode') : get_string('submissionsingle', 'mod_devcode'));
+            $submissioncountdisplay = ($submissioncount > 1 ? 
+                get_string('submissionsmultiple', 'mod_devcode', $submissioncount) : 
+                get_string('submission', 'mod_devcode'));
             echo '<td>' . $submissioncountdisplay . '</td>';
             
             // Status
@@ -147,7 +148,7 @@ if (empty($students)) {
             echo '</td>';
         } else {
             // No submissions yet
-            echo '<td>0 ' . get_string('submissionsingle', 'mod_devcode') . '</td>';
+            echo '<td>0 ' . get_string('submission', 'mod_devcode') . '</td>';
             echo '<td><div class="status-notsubmitted">' . get_string('submissionstatus_notsubmitted', 'mod_devcode') . '</div></td>';
             echo '<td>-</td>';
             echo '<td>-</td>';
