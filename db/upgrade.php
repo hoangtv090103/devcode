@@ -87,7 +87,7 @@ function xmldb_devcode_upgrade($oldversion) {
         $table = new xmldb_table('devcode_submissions');
         
         // Define the field
-        $field = new xmldb_field('plagiarism_url', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'total_tests');
+        $field = new xmldb_field('plagiarism_url', XMLDB_TYPE_TEXT, null, null, null, null, null, 'total_tests');
         
         // Add the field if it doesn't exist
         if (!$dbman->field_exists($table, $field)) {

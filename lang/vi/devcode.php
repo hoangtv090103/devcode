@@ -93,6 +93,7 @@ $string['submissionstatus_notallowed'] = 'Không được phép nộp bài vào 
 $string['submissionstatus_completed'] = 'Hoàn thành';
 $string['submissionstatus_failed'] = 'Thất bại';
 $string['submissionstatus_partial'] = 'Đúng một phần';
+$string['submissionstatus_plagiarism_detected'] = 'Phát hiện có khả năng đạo văn';
 $string['submissionsfor'] = 'Bài nộp cho {$a}';
 $string['nostudentsyet'] = 'Chưa có sinh viên nộp bài';
 $string['back'] = 'Quay lại';

@@ -61,7 +61,7 @@
                 <FIELD NAME="feedback" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false"/>
                 <FIELD NAME="passed_tests" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of test cases passed"/>
                 <FIELD NAME="total_tests" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Total number of test cases for this assignment"/>
-                <FIELD NAME="plagiarism_url" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="URL to plagiarism report for this submission"/>
+                <FIELD NAME="plagiarism_url" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false" COMMENT="URL to plagiarism report for this submission"/>
                 <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
             </FIELDS>

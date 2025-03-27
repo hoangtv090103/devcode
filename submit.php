@@ -164,6 +164,11 @@ if ($mform->is_cancelled()) {
     $now = time();
     $code_content = '';
 
+    // Check if form was submitted via POST with direct code input
+    if (!isset($fromform->code) && isset($_POST['code']) && !empty($_POST['code'])) {
+        $fromform->code = $_POST['code'];
+    }
+
     // Xác định phương thức nộp bài (code trực tiếp hoặc file)
     if (!empty($fromform->submission_method) && $fromform->submission_method == 'file') {
         // Xử lý nộp bài bằng file
@@ -180,10 +185,11 @@ if ($mform->is_cancelled()) {
         }
     } else {
         // Xử lý nộp bài bằng code trực tiếp
-        $code_content = $fromform->code;
+        $code_content = isset($fromform->code) ? $fromform->code : '';
     }
 
-    if (empty(trim($code_content))) {
+    // Ensure we have a valid string before using trim()
+    if (!is_string($code_content) || trim($code_content) === '') {
         \core\notification::error(get_string('codeempty', 'devcode'));
         redirect(new \moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
     }

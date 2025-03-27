@@ -93,6 +93,7 @@ $string['submissionstatus_notallowed'] = 'Submission is not allowed at this time
 $string['submissionstatus_completed'] = 'Completed';
 $string['submissionstatus_failed'] = 'Failed';
 $string['submissionstatus_partial'] = 'Partially correct';
+$string['submissionstatus_plagiarism_detected'] = 'Potential plagiarism detected';
 $string['submissionsfor'] = 'Submissions for {$a}';
 $string['nostudentsyet'] = 'No students have submitted yet';
 $string['back'] = 'Back';
