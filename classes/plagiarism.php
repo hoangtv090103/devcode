@@ -151,6 +151,7 @@ class mod_devcode_plagiarism {
             $record->submission_id = $submissionid;
             $record->compared_with = $result['submission_id'];
             $record->similarity = $result['similarity'];
+            $record->details = isset($result['details']) ? $result['details'] : '';
             $record->timedetected = time();
             
             $DB->insert_record('devcode_plagiarism', $record);

@@ -17,6 +17,7 @@ function xmldb_devcode_upgrade($oldversion) {
         $table->add_field('similarity_score', XMLDB_TYPE_FLOAT, '5', null, XMLDB_NOTNULL, null, null);
         $table->add_field('flagged', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
         $table->add_field('reviewed', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('details', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL, null, null);    
         $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
         $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
 
@@ -63,6 +64,38 @@ function xmldb_devcode_upgrade($oldversion) {
 
         // Update version
         upgrade_mod_savepoint(true, 2025032205, 'devcode');
+    }
+
+    // Add the details field to devcode_plagiarism table if it doesn't exist
+    if ($oldversion < 20250327009) {
+        $table = new xmldb_table('devcode_plagiarism');
+        
+        // Define the field
+        $field = new xmldb_field('details', XMLDB_TYPE_TEXT, 'medium', null, XMLDB_NOTNULL, null, null, 'reviewed');
+        
+        // Add the field if it doesn't exist
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        
+        // Update version
+        upgrade_mod_savepoint(true, 20250327009, 'devcode');
+    }
+    
+    // Add the plagiarism_url field to devcode_submissions table
+    if ($oldversion < 20250327011) {
+        $table = new xmldb_table('devcode_submissions');
+        
+        // Define the field
+        $field = new xmldb_field('plagiarism_url', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'total_tests');
+        
+        // Add the field if it doesn't exist
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        
+        // Update version
+        upgrade_mod_savepoint(true, 20250327011, 'devcode');
     }
 
     return true;

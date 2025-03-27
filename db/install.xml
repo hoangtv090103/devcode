@@ -61,6 +61,7 @@
                 <FIELD NAME="feedback" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false"/>
                 <FIELD NAME="passed_tests" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of test cases passed"/>
                 <FIELD NAME="total_tests" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Total number of test cases for this assignment"/>
+                <FIELD NAME="plagiarism_url" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="URL to plagiarism report for this submission"/>
                 <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
             </FIELDS>
@@ -99,6 +100,7 @@
                 <FIELD NAME="similarity_score" TYPE="float" LENGTH="5" NOTNULL="true" SEQUENCE="false" COMMENT="Percentage of similarity between submissions"/>
                 <FIELD NAME="flagged" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether this pair is flagged for review"/>
                 <FIELD NAME="reviewed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether this pair has been reviewed by a teacher"/>
+                <FIELD NAME="details" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false" COMMENT="Additional details about the plagiarism detection"/>
                 <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
             </FIELDS>
