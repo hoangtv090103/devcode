@@ -153,7 +153,10 @@ class mod_devcode_submission_form extends moodleform
                     </div>
                     <div class="tab-content">
                         <div id="code-tab" class="tab-pane active">
-                            <div class="code-editor-container custom-editor-wrapper">');
+                            <div class="code-editor-container custom-editor-wrapper">
+                                <div class="editor-with-line-numbers">
+                                    <div id="line-numbers" class="line-numbers"></div>
+                                    <div class="code-editor-content">');
 
         // Tùy chọn editor tùy theo ngôn ngữ lập trình
         $attributes = array(
@@ -173,30 +176,32 @@ class mod_devcode_submission_form extends moodleform
             $attr_string .= $key . '="' . s($value) . '" ';
         }
         
-        // Thay thế custom textarea bằng textarea từ Moodle
-        $mform->addElement('textarea', 'code', '', $attributes);
-        
-        // Đặt giá trị mặc định cho trường code
+        // Lấy giá trị mặc định cho textarea
+        $default_value = '';
         if ($submission && !empty($submission->code)) {
-            $mform->setDefault('code', $submission->code);
+            $default_value = s($submission->code);
         } else {
-            $mform->setDefault('code', $this->get_default_code_template($devcode->language));
+            $default_value = s($this->get_default_code_template($devcode->language));
         }
         
+        // Thay thế Moodle textarea bằng custom HTML textarea
+        $mform->addElement('html', '<textarea id="id_code" name="code" ' . $attr_string . '>' . $default_value . '</textarea>');
+
         // Thiết lập kiểu dữ liệu
         $mform->setType('code', PARAM_RAW);
         
-        // Thêm rule cho vấn đề validation
-        $mform->addRule('code', get_string('codeempty', 'devcode'), 'required', null, 'client');
+        // Thêm rule cho vấn đề validation - custom rule
+        $mform->addElement('html', '<div id="id_error_code" class="error" style="display: none;">' . get_string('codeempty', 'devcode') . '</div>');
 
         // Đóng tab code và mở tab file
         $mform->addElement('html', '
-                    </div>
-                </div>
-                <div id="file-tab" class="tab-pane">
-                    <div class="file-uploader-container">
-                        <p>' . get_string('fileuploadinstructions', 'devcode') . '</p>
-        ');
+                                </div>
+                            </div>
+                        </div>
+                        <div id="file-tab" class="tab-pane">
+                            <div class="file-uploader-container">
+                                <p>' . get_string('fileuploadinstructions', 'devcode') . '</p>
+            ');
 
         // File upload field
         $mform->addElement(
@@ -209,14 +214,16 @@ class mod_devcode_submission_form extends moodleform
 
         // Đóng tab file và toàn bộ container
         $mform->addElement('html', '
+                            </div>
+                        </div>
+                    </div>
+                    <div class="code-autosave-info">
+                        <div id="autosave-status" class="autosave-status"></div>
+                        <button type="button" id="restore-saved-code" class="btn btn-link restore-saved-code" style="display: none;">
+                            ' . get_string('restoresavedcode', 'devcode') . '
+                        </button>
                     </div>
                 </div>
-            </div>
-            <div class="code-autosave-info">
-                <div id="autosave-status" class="autosave-status"></div>
-                <button type="button" id="restore-saved-code" class="btn btn-link restore-saved-code" style="display: none;">
-                    ' . get_string('restoresavedcode', 'devcode') . '
-                </button>
             </div>
         </div>
     </div>
@@ -232,6 +239,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const fileTabBtn = document.getElementById("file-tab-btn");
     const layout = document.querySelector(".responsive-layout");
     const codeEditor = document.getElementById("id_code");
+    const lineNumbers = document.getElementById("line-numbers");
     const autosaveStatus = document.getElementById("autosave-status");
     const restoreSavedCodeBtn = document.getElementById("restore-saved-code");
     
@@ -436,18 +444,16 @@ document.addEventListener("DOMContentLoaded", function() {
     handleResize();
     window.addEventListener("resize", handleResize);
     
-    // Line numbers implementation
+    // Update line numbers function
     function updateLineNumbers() {
-        const codeEditor = document.getElementById("id_code");
-        const lineNumbers = document.getElementById("line-numbers");
         if (!codeEditor || !lineNumbers) return;
-        
-        // Get the lines of code
-        const lines = codeEditor.value.split("\\n");
-        const lineCount = lines.length;
         
         // Clear the line numbers container
         lineNumbers.innerHTML = "";
+        
+        // Get the lines of code and count
+        const lines = codeEditor.value.split("\\n");
+        const lineCount = lines.length;
         
         // Add line numbers
         for (let i = 1; i <= lineCount; i++) {
@@ -458,30 +464,21 @@ document.addEventListener("DOMContentLoaded", function() {
         
         // Sync scroll position
         lineNumbers.scrollTop = codeEditor.scrollTop;
-        
-        // Ensure line numbers have the same line height as code
-        const computedStyle = window.getComputedStyle(codeEditor);
-        const lineHeight = computedStyle.lineHeight;
-        const fontSize = computedStyle.fontSize;
-        
-        // Apply the same line height to line numbers
-        const lineNumberDivs = lineNumbers.querySelectorAll("div");
-        lineNumberDivs.forEach(div => {
-            div.style.height = lineHeight;
-            div.style.lineHeight = lineHeight;
-            div.style.fontSize = fontSize;
+    }
+    
+    // Initialize line numbers on page load
+    updateLineNumbers();
+    
+    // Update line numbers when typing or scrolling
+    if (codeEditor) {
+        codeEditor.addEventListener("input", updateLineNumbers);
+        codeEditor.addEventListener("scroll", function() {
+            if (lineNumbers) {
+                lineNumbers.scrollTop = this.scrollTop;
+            }
         });
     }
     
-    // Initialize line numbers
-    updateLineNumbers();
-    
-    // Update line numbers when typing
-    document.getElementById("id_code").addEventListener("input", updateLineNumbers);
-    document.getElementById("id_code").addEventListener("scroll", function() {
-        document.getElementById("line-numbers").scrollTop = this.scrollTop;
-    });
-
     // Xử lý sự kiện submit form
     const form = document.querySelector("form.mform");
     
@@ -489,27 +486,23 @@ document.addEventListener("DOMContentLoaded", function() {
         form.addEventListener("submit", function(e) {
             // Đảm bảo nội dung từ code editor được gửi đi
             const codeEditor = document.getElementById("id_code");
+            const errorElement = document.getElementById("id_error_code");
+            
             if (codeEditor) {
                 // Nếu đang ở tab code, kiểm tra nội dung code
                 if (document.getElementById("code-tab").classList.contains("active")) {
                     // Kiểm tra nếu code rỗng thì ngăn form submit và hiển thị lỗi
                     if (codeEditor.value.trim() === "") {
                         e.preventDefault();
-                        const errorElement = document.getElementById("id_error_code");
                         if (errorElement) {
-                            errorElement.textContent = "Code không được để trống";
+                            errorElement.textContent = "' . get_string('codeempty', 'devcode') . '";
                             errorElement.style.display = "block";
                         }
                         return false;
+                    } else if (errorElement) {
+                        errorElement.style.display = "none";
                     }
                 }
-                
-                // Lưu nội dung code vào trường code
-                const codeField = document.createElement("input");
-                codeField.type = "hidden";
-                codeField.name = "code";
-                codeField.value = codeEditor.value;
-                form.appendChild(codeField);
             }
             
             // Disable nút submit để tránh click nhiều lần
@@ -573,7 +566,7 @@ document.addEventListener("DOMContentLoaded", function() {
         $errors = parent::validation($data, $files);
 
         // Kiểm tra xem code có rỗng không
-        if (empty(trim($data['code']))) {
+        if (isset($data['code']) && empty(trim($data['code']))) {
             $errors['code'] = get_string('codeempty', 'devcode');
         }
 

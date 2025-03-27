@@ -648,7 +648,6 @@
     display: block;
 }
 
-/* Improved code editor */
 .code-editor-container {
     position: relative;
 }
@@ -687,7 +686,6 @@
     text-align: center;
 }
 
-/* Improved test cases table */
 .testcases {
     margin-bottom: 30px;
     border: 1px solid #dee2e6;
@@ -999,12 +997,6 @@
 .status-notsubmitted {
     color: #6c757d;
     font-weight: 500;
-}
-
-/* Code editor container */
-.code-editor-container {
-    position: relative;
-    /* margin-bottom: 20px; */
 }
 
 /* Code editor overrides */
@@ -1494,5 +1486,63 @@
 .code-editor-wrapper:focus-within {
     border-color: #80bdff;
     outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Line numbers for code editor */
+.editor-with-line-numbers {
+    display: flex;
+    width: 100%;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #f8f9fa;
+}
+
+.line-numbers {
+    width: 50px;
+    background-color: #f0f0f0;
+    border-right: 1px solid #ddd;
+    padding: 15px 0;
+    text-align: right;
+    color: #666;
+    font-family: monospace;
+    font-size: 14px;
+    user-select: none;
+    overflow: hidden;
+}
+
+.line-numbers div {
+    padding: 0 8px;
+    height: 24px;
+    line-height: 24px;
+}
+
+.code-editor-content {
+    flex: 1;
+}
+
+.code-editor {
+    border: none !important;
+    border-radius: 0 !important;
+    width: 100%;
+    font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+    line-height: 24px !important;
+    height: 400px;
+    resize: vertical;
+    padding: 15px !important;
+    margin: 0 !important;
+    tab-size: 4;
+    background-color: #fff;
+}
+
+.code-editor:focus {
+    outline: none;
+    box-shadow: none !important;
+}
+
+.editor-with-line-numbers:focus-within {
+    border-color: #80bdff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 } 
