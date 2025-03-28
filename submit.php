@@ -229,7 +229,7 @@ if ($mform->is_cancelled()) {
         $submission = $DB->get_record('devcode_submissions', array('id' => $submissionid));
 
         // Chỉ cập nhật nếu chưa có kết quả từ API
-        if ($submission->status !== 'graded') {
+        if ($submission && $submission->status !== 'graded') {
             $submission->score = 8;  // Điểm số (trên 10)
             $submission->feedback = get_string('mockresult', 'devcode') . ' 8/10';
             $submission->status = 'graded';
@@ -256,11 +256,20 @@ if ($mform->is_cancelled()) {
         }
     }
 
-    // Hiển thị thông báo thành công
+    // Hiển thị thông báo thành công - Set session notification BEFORE doing redirect
     \core\notification::success(get_string('submissionsuccess', 'devcode'));
 
-    // Chuyển hướng đến trang kết quả thay vì trang xem bài tập
-    redirect(new \moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submissionid)));
+    // Get the submission record to ensure it exists before redirecting
+    $submission_exists = $DB->record_exists('devcode_submissions', array('id' => $submissionid));
+    $cm_exists = $DB->record_exists('course_modules', array('id' => $cm->id));
+
+    if ($submission_exists && $cm_exists) {
+        // Chuyển hướng đến trang kết quả thay vì trang xem bài tập
+        redirect(new \moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submissionid)));
+    } else {
+        // Fallback if the submission or course module doesn't exist
+        redirect(new \moodle_url('/course/view.php', array('id' => $course->id)));
+    }
 }
 
 // Hiển thị form
