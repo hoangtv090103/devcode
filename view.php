@@ -184,6 +184,12 @@ if ($canmanage) {
     // Link to view all submissions
     $viewsubmissionsurl = new moodle_url('/mod/devcode/submissions.php', array('id' => $cm->id));
     echo html_writer::tag('li', html_writer::link($viewsubmissionsurl, get_string('viewallsubmissions', 'devcode')));
+    
+    // Add link to plagiarism report if plagiarism detection is enabled
+    if (!empty($devcode->enable_plagiarism)) {
+        $plagiarismurl = new moodle_url('/mod/devcode/plagiarism_report.php', array('id' => $cm->id));
+        echo html_writer::tag('li', html_writer::link($plagiarismurl, get_string('plagiarismreport', 'devcode')));
+    }
 
     echo html_writer::end_tag('ul');
     echo html_writer::end_tag('div');

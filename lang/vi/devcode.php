@@ -203,4 +203,5 @@ $string['hoursago'] = 'giờ trước';
 $string['daysago'] = 'ngày trước';
 
 $string['notfound'] = 'Không tìm thấy';
+$string['mockresult'] = 'Kết quả mô phỏng';
 ?> 

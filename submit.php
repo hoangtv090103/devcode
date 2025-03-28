@@ -435,7 +435,12 @@ if ($submission_count > 1) {
 
         // Trạng thái
         $status_class = 'status-' . $sub->status;
-        $status_text = get_string('submissionstatus_' . $sub->status, 'devcode', userdate($sub->timemodified));
+        // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
+        if ($sub->status === 'plagiarism_detected') {
+            $status_text = 'Potential plagiarism detected';
+        } else {
+            $status_text = get_string('submissionstatus_' . $sub->status, 'devcode', userdate($sub->timemodified));
+        }
         echo html_writer::tag('td', html_writer::tag('span', $status_text, array('class' => $status_class)));
 
         // Điểm số

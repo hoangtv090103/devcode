@@ -523,7 +523,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Hiển thị trạng thái nộp bài
         if ($submission) {
-            $status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
+            // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
+            if ($submission->status === 'plagiarism_detected') {
+                $status_text = 'Potential plagiarism detected';
+            } else {
+                $status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
+            }
             $mform->addElement(
                 'static',
                 'submission_status',

@@ -95,13 +95,44 @@ echo '</div>'; // End compare-submissions-info
 
 // Get similarity
 $plagiarism = new mod_devcode_plagiarism($devcode);
+
+// Always get the code content for display purposes
 $code1 = $submission1->code;
 $code2 = $submission2->code;
 
-// Calculate similarity directly
-$normalized1 = $plagiarism->normalize_code($code1);
-$normalized2 = $plagiarism->normalize_code($code2);
-$similarity = $plagiarism->calculate_similarity($normalized1, $normalized2);
+// Try to get the stored similarity score first - using two separate queries to avoid parameter issues
+$sql1 = "SELECT similarity_score 
+        FROM {devcode_plagiarism} 
+        WHERE submission1_id = :sid1 AND submission2_id = :sid2";
+$params1 = ['sid1' => $sid1, 'sid2' => $sid2];
+$stored_result = $DB->get_record_sql($sql1, $params1);
+
+// If not found in first configuration, try the reverse
+if (!$stored_result) {
+    $sql2 = "SELECT similarity_score 
+            FROM {devcode_plagiarism} 
+            WHERE submission1_id = :sid1 AND submission2_id = :sid2";
+    $params2 = ['sid1' => $sid2, 'sid2' => $sid1];
+    $stored_result = $DB->get_record_sql($sql2, $params2);
+}
+
+if ($stored_result && isset($stored_result->similarity_score)) {
+    // Use the stored score
+    $similarity = $stored_result->similarity_score;
+} else {
+    // Calculate similarity on-the-fly as fallback
+    $normalized1 = $plagiarism->get_normalized_code($code1);
+    $normalized2 = $plagiarism->get_normalized_code($code2);
+    $similarity = $plagiarism->get_similarity($normalized1, $normalized2);
+    
+    // Store this result for future use
+    $new_record = new stdClass();
+    $new_record->submission1_id = $sid1;
+    $new_record->submission2_id = $sid2;
+    $new_record->similarity_score = $similarity;
+    $new_record->timemodified = time();
+    $DB->insert_record('devcode_plagiarism', $new_record);
+}
 
 // Display similarity information
 echo '<div class="similarity-info mb-4">';
@@ -165,7 +196,7 @@ echo '</div>'; // End code-tabs
 
 // Return link
 echo '<div class="back-links mt-4">';
-$reporturl = new moodle_url('/mod/devcode/plagiarism_report.php', array('id' => $cm->id, 'sid' => $sid1));
+$reporturl = $CFG->wwwroot . '/mod/devcode/plagiarism_report.php?id=' . $cm->id . '&sid=' . $sid1;
 echo '<a href="' . $reporturl . '" class="btn btn-secondary">' . 
     get_string('backtoplagiarismreport', 'mod_devcode') . '</a>';
 echo '</div>';

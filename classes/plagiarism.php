@@ -133,6 +133,27 @@ class mod_devcode_plagiarism {
     }
     
     /**
+     * Public wrapper to normalize code for external use
+     *
+     * @param string $code The code to normalize
+     * @return string Normalized code
+     */
+    public function get_normalized_code($code) {
+        return $this->normalize_code($code);
+    }
+    
+    /**
+     * Public wrapper to calculate similarity for external use
+     *
+     * @param string $code1 First code string
+     * @param string $code2 Second code string
+     * @return int Similarity percentage (0-100)
+     */
+    public function get_similarity($code1, $code2) {
+        return $this->calculate_similarity($code1, $code2);
+    }
+    
+    /**
      * Store plagiarism results
      *
      * @param int $submissionid The submission ID

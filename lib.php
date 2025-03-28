@@ -1,10 +1,41 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Library of interface functions and constants for module devcode
+ *
+ * All the core Moodle functions, neeeded to allow the module to work
+ * integrated in Moodle should be placed here.
+ *
+ * All the devcode specific functions, needed to implement all the module
+ * logic, should go to locallib.php. This will help to save some memory when
+ * Moodle is performing actions across all modules.
+ *
+ * @package     mod_devcode
+ * @copyright   2024 Your Name <your@email.com>
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir . '/moodlelib.php');
 require_once($CFG->libdir . '/adminlib.php');
 require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/lib/accesslib.php');
+require_once($CFG->libdir.'/gradelib.php');
 
 /**
  * Returns the information on whether the module supports a feature
@@ -216,9 +247,11 @@ function devcode_update_grades($devcode = null, $userid = 0)
         $whereclause = ' WHERE ' . implode(' AND ', $conditions);
     }
 
-    $sql = "SELECT s.*, r.passed, r.output as result_output
+    // Sửa SQL để không bị lỗi duplicate ID bằng cách sử dụng DISTINCT ON hoặc GROUP BY
+    $sql = "SELECT DISTINCT s.id, s.*
             FROM {devcode_submissions} s
-            LEFT JOIN {devcode_submission_results} r ON s.id = r.submissionid" . $whereclause;
+            LEFT JOIN {devcode_submission_results} r ON s.id = r.submissionid" . $whereclause . "
+            ORDER BY s.id";
 
     $submissions = $DB->get_records_sql($sql, $params);
 
@@ -479,7 +512,7 @@ function devcode_send_to_api($submissionid)
 
     // Sắp xếp kết quả theo thứ tự index để đảm bảo đúng thứ tự
     usort($results_response, function ($a, $b) {
-        return $a['index'] - $b['index'];
+        return isset($a['index']) && isset($b['index']) ? $a['index'] - $b['index'] : 0;
     });
 
     // Xác định các test cases đã pass và test case bị fail gần nhất (có index lớn nhất)
@@ -497,20 +530,20 @@ function devcode_send_to_api($submissionid)
             $test_result = new stdClass();
             $test_result->submissionid = $submissionid;
             $test_result->testcaseid = $testcase_id;
-            $test_result->passed = $result['passed'];
+            $test_result->passed = isset($result['passed']) ? $result['passed'] : 0;
             $test_result->output = $result['output'];
             $test_result->error_message = $result['error_message'];
             $test_result->execution_time = $result['execution_time'];
             $test_result->memory_used = $result['memory_used'];
             $test_result->timecreated = time();
 
-            if ($result['passed'] == 1) {
+            if (isset($result['passed']) && $result['passed'] == 1) {
                 // Nếu test case pass, thêm vào danh sách passed
                 $passed_tests++;
                 $passed_test_results[] = $test_result;
             } else {
                 // Nếu test case fail, kiểm tra xem có phải là cái mới nhất (index lớn nhất) không
-                if ($latest_failed_result === null || $result['index'] > $latest_failed_result['index']) {
+                if ($latest_failed_result === null || (isset($result['index']) && (!isset($latest_failed_result['index']) || $result['index'] > $latest_failed_result['index']))) {
                     $latest_failed_result = $result;
                     $latest_failed_testcase = $testcase;
                     // Không lưu lại kết quả fail này ngay, chỉ giữ lại thông tin

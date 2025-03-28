@@ -32,6 +32,35 @@ $string['similaritythresholderror'] = 'Threshold must be a number between 1 and 
 $string['plagiarismreport'] = 'Plagiarism Report';
 $string['similarityscore'] = 'Similarity Score';
 $string['flaggedsubmissions'] = 'Flagged Submissions';
+$string['comparesubmissions'] = 'Compare Submissions';
+$string['codecomparison'] = 'Code Comparison';
+$string['codecomparisoninfo'] = 'This view highlights similarities between the two submissions.';
+$string['backtoplagiarismreport'] = 'Back to Plagiarism Report';
+$string['plagiarismdetailreport'] = 'Plagiarism Detail Report';
+$string['submissiondetails'] = 'Submission Details';
+$string['similarsubmissions'] = 'Similar Submissions';
+$string['nosimilarsubmissionsfound'] = 'No similar submissions found.';
+$string['viewsourcecode'] = 'View Source Code';
+$string['teachernotes'] = 'Teacher Notes';
+$string['notes'] = 'Notes';
+$string['flagasplagiarism'] = 'Flag as Plagiarism';
+$string['markaspassed'] = 'Mark as Passed';
+$string['backtoplagiarismlist'] = 'Back to Plagiarism List';
+$string['submissionflaggedasplagiarism'] = 'Submission has been flagged as potential plagiarism.';
+$string['submissionmarkedaspassed'] = 'Submission has been marked as passed.';
+$string['filterbyassignment'] = 'Filter by assignment';
+$string['allassignments'] = 'All assignments';
+$string['apply'] = 'Apply';
+$string['noplagiarismfound'] = 'No plagiarism detected.';
+$string['maxsimilarity'] = 'Max Similarity';
+$string['matchescount'] = 'Matches Count';
+$string['invalidaction'] = 'Invalid action.';
+$string['invalidaccess'] = 'Invalid access.';
+$string['plagiarismnotenabled'] = 'Plagiarism detection is not enabled for this assignment.';
+$string['allplagiarismreports'] = 'All Plagiarism Reports';
+$string['noplagiarismdetected'] = 'No plagiarism detected.';
+$string['assignment'] = 'Assignment';
+$string['submissionid'] = 'Submission ID';
 
 // View strings
 $string['submitassignment'] = 'Submit';
@@ -203,4 +232,8 @@ $string['hoursago'] = 'hours ago';
 $string['daysago'] = 'days ago';
 
 $string['notfound'] = 'Not found';
+
+$string['mockresult'] = 'Mock result';
+
+
 ?> 
