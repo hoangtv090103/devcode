@@ -235,5 +235,15 @@ $string['notfound'] = 'Not found';
 
 $string['mockresult'] = 'Mock result';
 
+// Chuỗi cho trạng thái bài nộp
+$string['submitted'] = 'Submitted';
+$string['graded'] = 'Graded';
+$string['processing'] = 'Your submission is being processed...';
+$string['error'] = 'Error';
+$string['failed'] = 'Failed';
+$string['plagiarism'] = 'Plagiarism detected';
+$string['plagiarism_detected'] = 'Plagiarism detected. Similarity score: {$a}%';
+$string['plagiarism_details'] = 'View details: {$a}';
+$string['view_plagiarism_report'] = 'View plagiarism report';
 
 ?> 

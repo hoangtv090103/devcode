@@ -281,7 +281,7 @@ echo html_writer::tag('hr', '', array('class' => 'devcode-assignment-divider'));
 // Hiển thị ngôn ngữ lập trình được sử dụng
 $language_name = devcode_get_language_by_id($devcode->language);
 
-    
+
 // Replace simple paragraph with styled highlighted container
 echo html_writer::start_tag('div', array('class' => 'devcode-language-highlight'));
 echo html_writer::tag('span', $language_name, array('class' => 'devcode-language-value'));

@@ -204,4 +204,16 @@ $string['daysago'] = 'ngày trước';
 
 $string['notfound'] = 'Không tìm thấy';
 $string['mockresult'] = 'Kết quả mô phỏng';
-?> 
+
+// Chuỗi cho trạng thái bài nộp
+$string['submitted'] = 'Đã nộp';
+$string['graded'] = 'Đã chấm điểm';
+$string['processing'] = 'Bài nộp của bạn đang được xử lý...';
+$string['error'] = 'Lỗi';
+$string['failed'] = 'Không đạt';
+$string['plagiarism'] = 'Phát hiện đạo code';
+$string['plagiarism_detected'] = 'Phát hiện đạo code. Độ tương đồng: {$a}%';
+$string['plagiarism_details'] = 'Xem chi tiết: {$a}';
+$string['view_plagiarism_report'] = 'Xem báo cáo đạo văn';
+$string['partial'] = 'Đúng một phần';
+$string['completed'] = 'Hoàn thành';

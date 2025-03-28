@@ -216,35 +216,15 @@ function devcode_delete_instance($id)
  */
 function devcode_update_grades($devcode = null, $userid = 0)
 {
-    global $DB, $USER;
+    global $CFG, $DB, $USER;
 
-    if ($devcode !== null) {
-        $where = array('devcodeid' => $devcode->id);
-        if ($userid) {
-            $where['userid'] = $userid;
-        }
-    } else {
-        $where = array();
-        if ($userid) {
-            $where['userid'] = $userid;
-        }
-    }
-
-    // Xây dựng mệnh đề WHERE thủ công thay vì sử dụng sql_where
-    $whereclause = '';
     $params = array();
+    $params[] = $devcode->id;
+    $whereclause = ' WHERE s.devcodeid = ?';
 
-    if (!empty($where)) {
-        $conditions = array();
-        $i = 0;
-
-        foreach ($where as $field => $value) {
-            $conditions[] = "$field = :param$i";
-            $params["param$i"] = $value;
-            $i++;
-        }
-
-        $whereclause = ' WHERE ' . implode(' AND ', $conditions);
+    if ($userid) {
+        $params[] = $userid;
+        $whereclause .= ' AND s.userid = ?';
     }
 
     // Sửa SQL để không bị lỗi duplicate ID bằng cách sử dụng DISTINCT ON hoặc GROUP BY
@@ -266,7 +246,7 @@ function devcode_update_grades($devcode = null, $userid = 0)
             $grade->dategraded = time();
             $grade->datesubmitted = $submission->timecreated;
 
-            grade_update('mod/devcode', $submission->devcodeid, 'mod', 'devcode', 0, 0, $grade);
+            grade_update('mod/devcode', $devcode->course, 'mod', 'devcode', $devcode->id, 0, $grade);
         }
     }
 }
@@ -412,6 +392,17 @@ function devcode_send_to_api($submissionid)
     // Lấy thông tin bài nộp
     $submission = $DB->get_record('devcode_submissions', array('id' => $submissionid), '*', MUST_EXIST);
     $devcode = $DB->get_record('devcode', array('id' => $submission->devcodeid), '*', MUST_EXIST);
+    
+    // Đảm bảo có thông tin về khóa học
+    if (empty($devcode->course)) {
+        $cm = get_coursemodule_from_instance('devcode', $devcode->id, 0, false, MUST_EXIST);
+        $devcode->course = $cm->course;
+    }
+
+    // Cập nhật trạng thái thành "processing" - đang xử lý
+    // $submission->status = 'processing';
+    // $submission->feedback = get_string('processing', 'mod_devcode', '');
+    // $DB->update_record('devcode_submissions', $submission);
 
     // Lấy tất cả test cases của bài tập
     $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC');
@@ -488,6 +479,39 @@ function devcode_send_to_api($submissionid)
         $DB->update_record('devcode_submissions', $submission);
 
         return false;
+    }
+
+    // Kiểm tra kết quả kiểm tra đạo văn
+    $plagiarism_detected = isset($process_response['plagiarism_detected']) && $process_response['plagiarism_detected'] === true;
+    $plagiarism_url = isset($process_response['plagiarism_url']) ? $process_response['plagiarism_url'] : '';
+    $plagiarism_similarity = isset($process_response['plagiarism_similarity']) ? floatval($process_response['plagiarism_similarity']) : 0;
+    
+    // Nếu phát hiện đạo code, cập nhật trạng thái thành "plagiarism"
+    if ($plagiarism_detected) {
+        // $submission->status = 'plagiarism';
+        $plagiarism_message = get_string('plagiarism_detected', 'mod_devcode', $plagiarism_similarity);
+        
+        if (!empty($plagiarism_url)) {
+            $submission->plagiarism_url = $plagiarism_url;
+            $plagiarism_message .= ' ' . get_string('plagiarism_details', 'mod_devcode', $plagiarism_url);
+        }
+        
+        $submission->feedback = $plagiarism_message;
+        $DB->update_record('devcode_submissions', $submission);
+        
+        // Cập nhật điểm về 0 nếu phát hiện đạo văn
+        $submission->score = 0;
+        $submission->feedback = $plagiarism_message;
+        $submission->passed_tests = 0; 
+        $submission->total_tests = count($testcases);
+        $submission->timemodified = time();
+        
+        $DB->update_record('devcode_submissions', $submission);
+        
+        // Cập nhật điểm vào gradebook
+        devcode_update_grades($devcode, $submission->userid);
+        
+        return true;
     }
 
     // Lấy kết quả chi tiết từng test case
@@ -589,7 +613,7 @@ function devcode_send_to_api($submissionid)
     $feedback = "";
     if ($latest_failed_result !== null) {
         // Nếu có test case bị lỗi, hiển thị thông tin chi tiết
-        $submission->status = 'failed';
+        // $submission->status = 'failed';
 
         if ($failed_test_info) {
             $feedback = "Test case failed. ";
@@ -613,7 +637,7 @@ function devcode_send_to_api($submissionid)
         }
     } else {
         // Nếu tất cả test case đều pass, thông báo kết quả tổng quan
-        $submission->status = 'graded';
+        // $submission->status = 'graded';
         $feedback = "Passed $passed_tests out of $total_testcases test cases.";
     }
 

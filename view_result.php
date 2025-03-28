@@ -27,6 +27,7 @@ require_once(dirname(__FILE__) . '/lib.php');
 
 // Required imports
 require_once($CFG->libdir . '/accesslib.php');
+
 use \core\output\html_writer;
 
 // Course Module ID
@@ -60,8 +61,8 @@ $PAGE->requires->css('/mod/devcode/styles.css');
 $submission = $DB->get_record('devcode_submissions', array('id' => $sid), '*', MUST_EXIST);
 
 // Kiểm tra quyền xem submission
-$canviewsubmission = has_capability('mod/devcode:manage', $context) || 
-                    ($submission->userid == $USER->id && has_capability('mod/devcode:submit', $context));
+$canviewsubmission = has_capability('mod/devcode:manage', $context) ||
+    ($submission->userid == $USER->id && has_capability('mod/devcode:submit', $context));
 
 if (!$canviewsubmission) {
     throw new moodle_exception('nopermissions', 'error', '', get_string('viewsubmission', 'devcode'));
@@ -130,14 +131,65 @@ echo html_writer::tag('div', get_string('programminglanguage', 'devcode'), array
 echo html_writer::tag('div', s($language_name), array('class' => 'devcode-info-value'));
 echo html_writer::end_tag('div');
 
-// Trạng thái
-$status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
-$status_class = 'status-' . $submission->status;
-echo html_writer::start_tag('div', array('class' => 'devcode-info-item'));
-echo html_writer::tag('div', get_string('status', 'devcode'), array('class' => 'devcode-info-label'));
-echo html_writer::tag('div', html_writer::tag('span', $status_text, array('class' => 'devcode-status-badge ' . $status_class)), 
-    array('class' => 'devcode-info-value'));
+// Hiển thị trạng thái và thông tin chung
+$status_class = 'badge ';
+switch ($submission->status) {
+    case 'graded':
+        $status_class .= 'badge-success';
+        break;
+    case 'failed':
+        $status_class .= 'badge-warning';
+        break;
+    case 'error':
+        $status_class .= 'badge-danger';
+        break;
+    case 'processing':
+        $status_class .= 'badge-info';
+        break;
+    case 'plagiarism':
+        $status_class .= 'badge-danger';
+        break;
+    default:
+        $status_class .= 'badge-primary';
+}
+
+echo html_writer::start_tag('div', array('class' => 'submission-status'));
+echo html_writer::tag('span', get_string($submission->status, 'devcode'), array('class' => $status_class));
 echo html_writer::end_tag('div');
+
+// Hiển thị thông báo đang xử lý nếu submission đang ở trạng thái processing
+if ($submission->status === 'processing') {
+    echo html_writer::start_tag('div', array('class' => 'alert alert-info'));
+    echo html_writer::tag('i', '', array('class' => 'fa fa-spinner fa-spin mr-2'));
+    echo get_string('processing', 'devcode');
+    echo html_writer::end_tag('div');
+
+    // JavaScript để tự động làm mới trang sau 5 giây
+    $PAGE->requires->js_init_code('
+        setTimeout(function() {
+            location.reload();
+        }, 5000);
+    ');
+}
+
+// Hiển thị cảnh báo đạo văn
+if ($submission->status === 'plagiarism') {
+    echo html_writer::start_tag('div', array('class' => 'alert alert-danger'));
+    echo html_writer::tag('i', '', array('class' => 'fa fa-exclamation-triangle mr-2'));
+    echo $submission->feedback;
+
+    // Hiển thị link xem chi tiết nếu có
+    if (!empty($submission->plagiarism_url)) {
+        echo html_writer::empty_tag('br');
+        echo html_writer::link(
+            $submission->plagiarism_url,
+            get_string('view_plagiarism_report', 'devcode'),
+            array('class' => 'btn btn-sm btn-outline-danger mt-2', 'target' => '_blank')
+        );
+    }
+
+    echo html_writer::end_tag('div');
+}
 
 echo html_writer::end_tag('div'); // end devcode-info-grid
 
@@ -168,12 +220,14 @@ echo html_writer::start_tag('div', array('class' => 'devcode-stats-container'));
 echo html_writer::start_tag('div', array('class' => 'devcode-stats-item'));
 echo html_writer::tag('div', get_string('testcasespassed', 'devcode'), array('class' => 'devcode-stats-label'));
 echo html_writer::start_tag('div', array('class' => 'devcode-stats-value'));
-echo html_writer::tag('div', $passed_tests . '/' . $total_tests . ' (' . $pass_rate . '%)', 
-    array('class' => $passed_tests == $total_tests ? 'devcode-perfect-score' : ''));
+echo html_writer::tag(
+    'div',
+    $passed_tests . '/' . $total_tests . ' (' . $pass_rate . '%)',
+    array('class' => $passed_tests == $total_tests ? 'devcode-perfect-score' : '')
+);
 
 // Progress bar
-$bar_class = ($passed_tests == $total_tests) ? 'devcode-progress-perfect' : 
-             ($pass_rate >= 50 ? 'devcode-progress-good' : 'devcode-progress-poor');
+$bar_class = ($passed_tests == $total_tests) ? 'devcode-progress-perfect' : ($pass_rate >= 50 ? 'devcode-progress-good' : 'devcode-progress-poor');
 echo html_writer::start_tag('div', array('class' => 'devcode-progress-container'));
 echo html_writer::tag('div', '', array(
     'class' => 'devcode-progress-bar ' . $bar_class,
@@ -218,6 +272,26 @@ echo html_writer::start_tag('div', array('class' => 'devcode-card-body'));
 echo html_writer::tag('pre', html_writer::tag('code', s($submission->code)), array('class' => 'devcode-code-display'));
 echo html_writer::end_tag('div'); // end card-body
 echo html_writer::end_tag('div'); // end submitted-code-card
+// Nút điều hướng
+echo html_writer::start_tag('div', array('class' => 'devcode-action-buttons'));
+echo html_writer::link(
+    new \moodle_url('/mod/devcode/view.php', array('id' => $cm->id)),
+    get_string('backtocourse', 'devcode'),
+    array('class' => 'btn btn-secondary devcode-action-btn')
+);
+
+// Nút nộp lại bài (nếu thời gian cho phép)
+if (
+    has_capability('mod/devcode:submit', $context) &&
+    (!$devcode->duedate || $devcode->duedate > time())
+) {
+    echo html_writer::link(
+        new \moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)),
+        get_string('resubmit', 'devcode'),
+        array('class' => 'btn btn-primary devcode-action-btn')
+    );
+}
+echo html_writer::end_tag('div'); // end action-buttons
 
 // Card kết quả chi tiết các test case
 if (!empty($test_results)) {
@@ -236,43 +310,49 @@ if (!empty($test_results)) {
     echo html_writer::tag('th', get_string('result', 'devcode'));
     echo html_writer::end_tag('tr');
     echo html_writer::end_tag('thead');
-    
+
     echo html_writer::start_tag('tbody');
     foreach ($test_results as $result) {
         // Thêm debugging chi tiết
         debugging("Looking for testcase with ID: {$result->testcaseid}, SubmissionID: {$result->submissionid}", DEBUG_DEVELOPER);
-        
+
         // Thay đổi cách query để tìm kiếm test case chính xác hơn
         $testcase = $DB->get_record_sql(
-            "SELECT * FROM {devcode_testcases} WHERE id = ?", 
+            "SELECT * FROM {devcode_testcases} WHERE id = ?",
             [$result->testcaseid]
         );
-        
+
         $row_class = $result->passed ? 'devcode-testcase-success' : 'devcode-testcase-failed';
         echo html_writer::start_tag('tr', array('class' => $row_class));
-        
+
         // Kiểm tra testcase có tồn tại không và hiển thị thông báo chi tiết hơn
         $input_value = ($testcase && isset($testcase->input)) ? s($testcase->input) : '(Không tìm thấy dữ liệu - ID: ' . $result->testcaseid . ')';
         $output_value = ($testcase && isset($testcase->output)) ? s($testcase->output) : '(Không tìm thấy dữ liệu - ID: ' . $result->testcaseid . ')';
-        
+
         echo html_writer::tag('td', html_writer::tag('pre', $input_value), array('class' => 'devcode-testcase-input'));
         echo html_writer::tag('td', html_writer::tag('pre', $output_value), array('class' => 'devcode-testcase-output'));
         echo html_writer::tag('td', html_writer::tag('pre', s($result->output)), array('class' => 'devcode-testcase-youroutput'));
-        
+
         // Kết quả
         $result_text = $result->passed ? get_string('passed', 'devcode') : get_string('failed', 'devcode');
         $result_class = $result->passed ? 'devcode-result-passed' : 'devcode-result-failed';
-        echo html_writer::tag('td', html_writer::tag('span', $result_text, array('class' => $result_class)), 
-            array('class' => 'devcode-testcase-result'));
-        
+        echo html_writer::tag(
+            'td',
+            html_writer::tag('span', $result_text, array('class' => $result_class)),
+            array('class' => 'devcode-testcase-result')
+        );
+
         echo html_writer::end_tag('tr');
-        
+
         // Hiển thị thông báo lỗi nếu có
         if (!$result->passed && !empty($result->error_message)) {
             echo html_writer::start_tag('tr', array('class' => 'devcode-testcase-error-row'));
             echo html_writer::tag('td', get_string('errormessage', 'devcode') . ':', array('class' => 'devcode-error-label'));
-            echo html_writer::tag('td', html_writer::tag('pre', s($result->error_message)), 
-                array('colspan' => '3', 'class' => 'devcode-testcase-error-message'));
+            echo html_writer::tag(
+                'td',
+                html_writer::tag('pre', s($result->error_message)),
+                array('colspan' => '3', 'class' => 'devcode-testcase-error-message')
+            );
             echo html_writer::end_tag('tr');
         }
     }
@@ -283,25 +363,6 @@ if (!empty($test_results)) {
 }
 
 echo html_writer::end_tag('div'); // end devcode-results-container
-
-// Nút điều hướng
-echo html_writer::start_tag('div', array('class' => 'devcode-action-buttons'));
-echo html_writer::link(
-    new \moodle_url('/mod/devcode/view.php', array('id' => $cm->id)),
-    get_string('backtocourse', 'devcode'),
-    array('class' => 'btn btn-secondary devcode-action-btn')
-);
-
-// Nút nộp lại bài (nếu thời gian cho phép)
-if (has_capability('mod/devcode:submit', $context) && 
-    (!$devcode->duedate || $devcode->duedate > time())) {
-    echo html_writer::link(
-        new \moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)),
-        get_string('resubmit', 'devcode'),
-        array('class' => 'btn btn-primary devcode-action-btn')
-    );
-}
-echo html_writer::end_tag('div'); // end action-buttons
 
 echo html_writer::end_tag('div'); // end devcode-results-page
 
@@ -630,4 +691,4 @@ echo '
 ';
 echo html_writer::end_tag('style');
 
-echo $OUTPUT->footer(); 
+echo $OUTPUT->footer();
