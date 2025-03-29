@@ -144,8 +144,13 @@ $string['submission'] = 'Submission';
 $string['codetab'] = 'Code';
 $string['filetab'] = 'File';
 $string['sourcefile'] = 'Source code file';
+$string['fileuploadhelp'] = 'Upload your source code file here. Make sure it contains all your solution code.';
+$string['fileuploadrequired'] = 'Please upload a source code file';
+$string['acceptedfiletypes'] = 'Accepted file types';
 $string['fileuploadinstructions'] = 'Upload your source code file. Accepted file types: .py, .java, .cpp, .c, .js';
 $string['filenotfound'] = 'The uploaded file could not be found. Please try again.';
+$string['emptyfile'] = 'The uploaded file is empty. Please check your file and try again.';
+$string['invalidfiletype'] = 'Invalid file type for {$a}. Please upload a file with the correct extension.';
 
 // Results display strings
 $string['gradingresults'] = 'Grading results';

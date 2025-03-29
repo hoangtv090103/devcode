@@ -26,10 +26,15 @@ require_once('../../config.php');
 require_once(dirname(__FILE__) . '/lib.php');
 require_once($CFG->dirroot . '/mod/devcode/classes/form/submission_form.php');
 
-// Required imports for context_module 
+// Required imports for context and file handling
 require_once($CFG->libdir . '/accesslib.php');
+require_once($CFG->libdir . '/filelib.php');
 
-use \core\output\html_writer;
+// Import core classes
+use core\output\html_writer;
+use core\notification;
+use core\context\module as context_module;
+use core\context\user as context_user;
 
 $id = required_param('id', PARAM_INT); // Course Module ID
 
@@ -42,7 +47,7 @@ $activityheader = ['description' => ''];
 
 // Kiểm tra đăng nhập và quyền truy cập
 require_login($course, true, $cm);
-$context = \context_module::instance($cm->id);
+$context = context_module::instance($cm->id);
 require_capability('mod/devcode:submit', $context);
 
 // Thiết lập trang
@@ -58,11 +63,117 @@ $PAGE->activityheader->set_attrs($activityheader);
 // Thêm CSS cho code editor
 $PAGE->requires->css('/mod/devcode/styles.css');
 
-// Load JavaScript modules - bỏ comment dòng này nếu cần dùng lại sau khi đã build
-// $PAGE->requires->js_call_amd('mod_devcode/code_editor', 'init');
-// $PAGE->requires->js_call_amd('mod_devcode/tabs', 'init');
+// Load JavaScript modules - bỏ comment dòng này để sử dụng JS modules
+$PAGE->requires->js_call_amd('mod_devcode/code_editor', 'init');
+$PAGE->requires->js_call_amd('mod_devcode/tabs', 'init');
+
+// Add file upload styles via JavaScript
+$PAGE->requires->js_init_code("
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create style element
+        var style = document.createElement('style');
+        style.type = 'text/css';
+        style.innerHTML = `
+            .file-upload-container {
+                padding: 25px;
+                border: 2px dashed #ccc;
+                border-radius: 8px;
+                background-color: #f9f9f9;
+                margin-bottom: 20px;
+                transition: all 0.3s;
+                text-align: center;
+            }
+            .file-upload-container:hover {
+                border-color: #66afe9;
+                background-color: #f4f8fa;
+            }
+            .file-upload-help {
+                margin-bottom: 15px;
+                color: #555;
+                font-size: 1rem;
+                font-weight: 500;
+            }
+            .file-upload-accepted-types {
+                margin: 15px 0;
+                font-size: 0.9rem;
+            }
+            .accepted-file-types {
+                margin: 15px 0;
+                padding: 12px;
+                background-color: #f0f0f0;
+                border-radius: 6px;
+                border-left: 4px solid #0056b3;
+            }
+            .file-extension {
+                display: inline-block;
+                padding: 3px 8px;
+                margin: 0 5px;
+                background-color: #e7f3ff;
+                border-radius: 3px;
+                font-family: monospace;
+                font-weight: bold;
+                color: #0056b3;
+            }
+            .file-tab-active .file-tab-only {
+                display: block;
+            }
+            .code-tab-active .file-tab-only {
+                display: none;
+            }
+            .file-upload-element {
+                display: none;
+                margin: 20px auto;
+                max-width: 500px;
+                text-align: center;
+            }
+            .file-tab-active .file-upload-element {
+                display: block;
+            }
+            .file-upload-icon {
+                display: block;
+                margin: 0 auto 15px;
+                width: 60px;
+                height: 60px;
+                line-height: 60px;
+                border-radius: 50%;
+                background-color: #e7f3ff;
+                color: #0056b3;
+                font-size: 24px;
+                text-align: center;
+            }
+            .submission-status {
+                margin: 20px 0;
+                padding: 10px 15px;
+                border-radius: 4px;
+                font-weight: 500;
+            }
+            .status-notsubmitted {
+                background-color: #f8f9fa;
+                border-left: 4px solid #6c757d;
+                color: #6c757d;
+            }
+            .status-submitted {
+                background-color: #e8f4f8;
+                border-left: 4px solid #17a2b8;
+                color: #17a2b8;
+            }
+            .status-graded {
+                background-color: #e8f8ef;
+                border-left: 4px solid #28a745;
+                color: #28a745;
+            }
+            .status-plagiarism_detected {
+                background-color: #fdf7e8;
+                border-left: 4px solid #ffc107;
+                color: #856404;
+            }
+        `;
+        document.getElementsByTagName('head')[0].appendChild(style);
+    });
+");
 
 // Thêm JavaScript inline tạm thời thay thế
+/*
 $PAGE->requires->js_init_code("
     require(['jquery'], function($) {
         // Code Editor functionality
@@ -103,13 +214,14 @@ $PAGE->requires->js_init_code("
         });
     });
 ");
+*/
 
 // Kiểm tra nếu còn thời gian nộp bài
 if (!empty($devcode->duedate) && $devcode->duedate < time()) {
     $renderer = $PAGE->get_renderer('mod_devcode');
     echo $OUTPUT->header();
     echo $OUTPUT->notification(get_string('assignmentclosed', 'devcode'), 'error');
-    echo $OUTPUT->continue_button(new \moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
+    echo $OUTPUT->continue_button(new moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
     echo $OUTPUT->footer();
     exit;
 }
@@ -155,7 +267,7 @@ if ($data_validated) {
 // Xử lý form khi được submit
 if ($mform->is_cancelled()) {
     // Nếu người dùng hủy form
-    redirect(new \moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
+    redirect(new moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
 } else if ($fromform = $mform->get_data()) {
     // Nếu form được submit thành công
     debugging('Form data received: ' . print_r($fromform, true), DEBUG_DEVELOPER);
@@ -169,64 +281,115 @@ if ($mform->is_cancelled()) {
         $fromform->code = $_POST['code'];
     }
 
-    // Xác định phương thức nộp bài (code trực tiếp hoặc file)
-    if (!empty($fromform->submission_method) && $fromform->submission_method == 'file') {
-        // Xử lý nộp bài bằng file
-        $fs = get_file_storage();
-        $context = \context_module::instance($cm->id);
-        $files = $fs->get_area_files($context->id, 'mod_devcode', 'submission', $fromform->id, 'id', false);
-
-        if ($files) {
-            $file = reset($files);
-            $code_content = $file->get_content();
-        } else {
-            \core\notification::error(get_string('filenotfound', 'devcode'));
-            redirect(new \moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
+    // Xác định phương thức nộp bài (code hoặc file)
+    $submission_method = isset($fromform->submission_method) ? $fromform->submission_method : 'code';
+    
+    // Lấy nội dung bài nộp dựa vào phương thức
+    if ($submission_method === 'code') {
+        // Lấy mã code từ textarea
+        if (!empty($fromform->code)) {
+            $code_content = trim($fromform->code);
         }
-    } else {
-        // Xử lý nộp bài bằng code trực tiếp
-        $code_content = isset($fromform->code) ? $fromform->code : '';
+        
+        // Kiểm tra nếu code trống
+        if (!is_string($code_content) || trim($code_content) === '') {
+            \core\notification::error(get_string('codeempty', 'devcode'));
+            redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
+            exit;
+        }
+    } else if ($submission_method === 'file') {
+        // Xử lý nộp file
+        $fs = get_file_storage();
+        $context = context_module::instance($cm->id);
+        
+        // Lấy thông tin về file được upload
+        $file_info = file_get_submitted_draft_itemid('sourcefile');
+        
+        if (!$file_info) {
+            \core\notification::error(get_string('fileuploadrequired', 'devcode'));
+            redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
+            exit;
+        }
+        
+        // Lấy các file đã upload
+        $files = $fs->get_area_files(
+            context_user::instance($USER->id)->id,
+            'user',
+            'draft',
+            $file_info,
+            'id',
+            false
+        );
+        
+        if (empty($files)) {
+            \core\notification::error(get_string('fileuploadrequired', 'devcode'));
+            redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
+            exit;
+        }
+        
+        // Lấy file đầu tiên
+        $file = reset($files);
+        $filename = $file->get_filename();
+        $file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        
+        // Lấy thông tin ngôn ngữ
+        $language_name = devcode_get_language_by_id($devcode->language);
+        
+        // Kiểm tra tính hợp lệ của loại file dựa vào ngôn ngữ
+        $valid_extension = false;
+        
+        // Kiểm tra phần mở rộng tệp với ngôn ngữ
+        if (stripos($language_name, 'python') !== false && in_array($file_ext, ['py'])) {
+            $valid_extension = true;
+        } else if (stripos($language_name, 'java') !== false && in_array($file_ext, ['java'])) {
+            $valid_extension = true;
+        } else if ((stripos($language_name, 'c++') !== false || stripos($language_name, 'cpp') !== false) && 
+                 in_array($file_ext, ['cpp', 'cc', 'cxx', 'c++', 'h', 'hpp'])) {
+            $valid_extension = true;
+        } else if (stripos($language_name, 'javascript') !== false && in_array($file_ext, ['js'])) {
+            $valid_extension = true;
+        }
+        
+        if (!$valid_extension) {
+            \core\notification::error(get_string('invalidfiletype', 'devcode', $language_name));
+            redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
+            exit;
+        }
+        
+        // Đọc nội dung file
+        $code_content = $file->get_content();
+        
+        if (empty($code_content)) {
+            \core\notification::error(get_string('emptyfile', 'devcode'));
+            redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
+            exit;
+        }
     }
 
-    // Ensure we have a valid string before using trim()
-    if (!is_string($code_content) || trim($code_content) === '') {
-        \core\notification::error(get_string('codeempty', 'devcode'));
-        redirect(new \moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
-    }
-
-    if ($submission) {
-        // Cập nhật bài nộp hiện tại
-        $submission->code = $code_content;
-        $submission->language = $fromform->language;
-        $submission->status = 'submitted'; // Đặt trạng thái là đã nộp
-        $submission->timemodified = $now;
-
-        // Cập nhật record trong database
-        $DB->update_record('devcode_submissions', $submission);
-        $submissionid = $submission->id;
-    } else {
-        // Tạo bài nộp mới
-        $newsubmission = new stdClass();
-        $newsubmission->devcodeid = $devcode->id;
-        $newsubmission->userid = $USER->id;
-        $newsubmission->code = $code_content;
-        $newsubmission->language = $fromform->language;
-        $newsubmission->status = 'submitted';
-        $newsubmission->timecreated = $now;
-        $newsubmission->timemodified = $now;
-
-        // Thêm bản ghi mới vào database
-        $submissionid = $DB->insert_record('devcode_submissions', $newsubmission);
-    }
+    // Dữ liệu để tạo bản ghi submission mới
+    $submission = new stdClass();
+    $submission->devcodeid = $devcode->id;
+    $submission->userid = $USER->id;
+    $submission->code = $code_content;
+    $submission->language = $devcode->language;
+    $submission->timemodified = $now;
+    $submission->timecreated = $now;
+    $submission->status = 'submitted';
+    
+    // Thêm thông tin phương thức nộp bài
+    $submission->submission_method = $submission_method;
+    
+    // Lưu bài nộp vào cơ sở dữ liệu
+    $submission->id = $DB->insert_record('devcode_submissions', $submission);
 
     // Gọi hàm gửi code đến API để chấm
-    $grading_result = devcode_send_to_api($submissionid);
+    $grading_result = devcode_send_to_api($submission->id);
 
     // Nếu không dùng API, có thể mô phỏng kết quả chấm
     if (!$grading_result) {
         // Giả lập kết quả chấm điểm (chỉ cho mục đích demo)
         // Trong thực tế, kết quả này sẽ được lấy từ API Judge0
-        $submission = $DB->get_record('devcode_submissions', array('id' => $submissionid));
+        $submission = $DB->get_record('devcode_submissions', array('id' => $submission->id));
 
         // Chỉ cập nhật nếu chưa có kết quả từ API
         if ($submission && $submission->status !== 'graded') {
@@ -241,7 +404,7 @@ if ($mform->is_cancelled()) {
 
             foreach ($testcases as $testcase) {
                 $result = new stdClass();
-                $result->submissionid = $submissionid;
+                $result->submissionid = $submission->id;
                 $result->testcaseid = $testcase->id;
                 $result->passed = ($testcase_count < 4) ? 1 : 0; // 4/5 test cases pass
                 $result->output = ($testcase_count < 4) ? $testcase->output : "Incorrect output";
@@ -260,15 +423,15 @@ if ($mform->is_cancelled()) {
     \core\notification::success(get_string('submissionsuccess', 'devcode'));
 
     // Get the submission record to ensure it exists before redirecting
-    $submission_exists = $DB->record_exists('devcode_submissions', array('id' => $submissionid));
+    $submission_exists = $DB->record_exists('devcode_submissions', array('id' => $submission->id));
     $cm_exists = $DB->record_exists('course_modules', array('id' => $cm->id));
 
     if ($submission_exists && $cm_exists) {
         // Chuyển hướng đến trang kết quả thay vì trang xem bài tập
-        redirect(new \moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submissionid)));
+        redirect(new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submission->id)));
     } else {
         // Fallback if the submission or course module doesn't exist
-        redirect(new \moodle_url('/course/view.php', array('id' => $course->id)));
+        redirect(new moodle_url('/course/view.php', array('id' => $course->id)));
     }
 }
 
@@ -340,6 +503,27 @@ if (!empty($devcode->duedate)) {
     );
 }
 
+// Hiển thị trạng thái nộp bài
+if ($submission) {
+    // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
+    if ($submission->status === 'plagiarism_detected') {
+        $status_text = 'Potential plagiarism detected';
+    } else {
+        $status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
+    }
+    echo html_writer::tag('div', 
+        html_writer::tag('strong', get_string('submissionstatus', 'devcode') . ': ') .
+        html_writer::tag('span', $status_text, array('class' => 'status-text')),
+        array('class' => 'submission-status status-' . $submission->status)
+    );
+} else {
+    echo html_writer::tag('div',
+        html_writer::tag('strong', get_string('submissionstatus', 'devcode') . ': ') .
+        html_writer::tag('span', get_string('submissionstatus_notsubmitted', 'devcode'), array('class' => 'status-text')),
+        array('class' => 'submission-status status-notsubmitted')
+    );
+}
+
 // Nếu đã có bài nộp trước đó, hiển thị kết quả ở phía trên form
 if ($submission && !empty($submission->score)) {
     echo html_writer::start_tag('div', array('class' => 'grading-results'));
@@ -393,7 +577,7 @@ if ($submission && !empty($submission->score)) {
     // Nút xem kết quả chi tiết và nộp lại bài
     echo html_writer::start_tag('div', array('class' => 'result-actions'));
     echo html_writer::link(
-        new \moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submission->id)),
+        new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submission->id)),
         get_string('viewdetailedresults', 'devcode'),
         array('class' => 'btn btn-secondary')
     );
@@ -459,7 +643,7 @@ if ($submission_count > 1) {
         // Hành động
         echo html_writer::start_tag('td');
         echo html_writer::link(
-            new \moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sub->id)),
+            new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sub->id)),
             get_string('viewdetails', 'devcode'),
             array('class' => 'btn btn-sm btn-secondary')
         );

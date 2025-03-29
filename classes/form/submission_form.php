@@ -25,6 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir . '/formslib.php');
+require_once($CFG->dirroot . '/repository/lib.php'); // Required for FILE_INTERNAL constant
 
 use \core\output\html_writer;
 
@@ -81,7 +82,7 @@ class mod_devcode_submission_form extends moodleform
             $testcases_html .= '</div>';
         }
 
-        
+
 
         // Hiển thị các test case mẫu trước phần nộp bài
         if (!empty($visible_testcases)) {
@@ -114,7 +115,6 @@ class mod_devcode_submission_form extends moodleform
             $table .= html_writer::end_tag('table');
 
             $mform->addElement('html', $table . '</div></div>');
-            
         }
 
         $mform->addElement('html', '<h2>' . get_string('submission', 'devcode') . '</h2>');
@@ -175,7 +175,7 @@ class mod_devcode_submission_form extends moodleform
         foreach ($attributes as $key => $value) {
             $attr_string .= $key . '="' . s($value) . '" ';
         }
-        
+
         // Lấy giá trị mặc định cho textarea
         $default_value = '';
         if ($submission && !empty($submission->code)) {
@@ -183,13 +183,13 @@ class mod_devcode_submission_form extends moodleform
         } else {
             $default_value = s($this->get_default_code_template($devcode->language));
         }
-        
+
         // Thay thế Moodle textarea bằng custom HTML textarea
         $mform->addElement('html', '<textarea id="id_code" name="code" ' . $attr_string . '>' . $default_value . '</textarea>');
 
         // Thiết lập kiểu dữ liệu
         $mform->setType('code', PARAM_RAW);
-        
+
         // Thêm rule cho vấn đề validation - custom rule
         $mform->addElement('html', '<div id="id_error_code" class="error" style="display: none;">' . get_string('codeempty', 'devcode') . '</div>');
 
@@ -198,21 +198,25 @@ class mod_devcode_submission_form extends moodleform
                                 </div>
                             </div>
                         </div>
-                        <div id="file-tab" class="tab-pane">
-                            <div class="file-uploader-container">
-                                <p>' . get_string('fileuploadinstructions', 'devcode') . '</p>
-            ');
+                    </div>
+                    <div id="file-tab" class="tab-pane">
+                        <div class="file-upload-container">
+                            <div class="file-upload-icon"><i class="fa fa-upload"></i></div>
+                            <p class="file-upload-help">' . get_string('fileuploadhelp', 'devcode') . '</p>
+                            <div class="file-upload-accepted-types">
+                                ' . $this->get_accepted_file_extensions_html($devcode->language) . '
+                            </div>
+                            <div class="file-picker-container">');
 
-        // File upload field
-        $mform->addElement(
-            'filepicker',
-            'sourcefile',
-            get_string('sourcefile', 'devcode'),
-            null,
-            array('maxbytes' => 1048576, 'accepted_types' => array('.py', '.java', '.cpp', '.c', '.js'))
+        // Thêm trường upload file trong file-tab
+        $filemanager_options = array(
+            'maxbytes' => 1048576, // 1MB
+            'maxfiles' => 1,
+            'accepted_types' => $this->get_accepted_file_extensions($devcode->language),
+            'subdirs' => 0
         );
 
-        // Đóng tab file và toàn bộ container
+        $mform->addElement('filepicker', 'sourcefile', get_string('sourcefile', 'devcode'), null, $filemanager_options);
         $mform->addElement('html', '
                             </div>
                         </div>
@@ -228,7 +232,7 @@ class mod_devcode_submission_form extends moodleform
         </div>
     </div>
 </div>
-        
+
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // Tab switching
@@ -263,7 +267,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 
                 // Kiểm tra xem có dữ liệu hợp lệ trong localStorage không
                 if (!(parsedData && parsedData.code && parsedData.timestamp)) {
-                    return
+                    return;
                 }
 
                 // Kiểm tra xem mã code hiện tại có nội dung không
@@ -276,7 +280,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     savedCodeVersion = parsedData.code;
                     lastSaveTime = new Date(parsedData.timestamp);
                     restoreSavedCodeBtn.style.display = "inline-block";
-                    autosaveStatus.innerHTML = \'<i class="fa fa-info-circle"></i> ' . get_string('localsavedversionexists', 'devcode') . '\';
+                    autosaveStatus.innerHTML = \'<i class="fa fa-info-circle"></i> \' + 
+                                 \'' . get_string('localsavedversionexists', 'devcode') . '\';
                     autosaveStatus.className = "autosave-status autosave-exists";
                 }
             } catch (e) {
@@ -390,6 +395,7 @@ document.addEventListener("DOMContentLoaded", function() {
     initializeCodeEditor();
     setupAutosave();
     
+    // Add click handlers to toggle tab visibility and make the file uploader visible
     tabBtns.forEach(btn => {
         btn.addEventListener("click", function() {
             const tabId = this.getAttribute("data-tab");
@@ -405,12 +411,20 @@ document.addEventListener("DOMContentLoaded", function() {
             // Update hidden field based on selected tab
             if (tabId === "code-tab") {
                 document.querySelector("input[name=\'submission_method\']").value = "code";
-                // Hiển thị sidebar khi chọn tab code
+                // Update layout classes for CSS styling
                 layout.classList.add("code-tab-active");
+                layout.classList.remove("file-tab-active");
+                // Show code related elements
+                if (autosaveStatus) autosaveStatus.style.display = "block";
+                if (restoreSavedCodeBtn) restoreSavedCodeBtn.style.display = savedCodeVersion ? "inline-block" : "none";
             } else {
                 document.querySelector("input[name=\'submission_method\']").value = "file";
-                // Ẩn sidebar khi chọn tab file
+                // Update layout classes for CSS styling
                 layout.classList.remove("code-tab-active");
+                layout.classList.add("file-tab-active");
+                // Hide code related elements
+                if (autosaveStatus) autosaveStatus.style.display = "none";
+                if (restoreSavedCodeBtn) restoreSavedCodeBtn.style.display = "none";
             }
         });
     });
@@ -484,13 +498,15 @@ document.addEventListener("DOMContentLoaded", function() {
     
     if (form) {
         form.addEventListener("submit", function(e) {
-            // Đảm bảo nội dung từ code editor được gửi đi
+            // Get current active tab
+            const activeTab = document.querySelector(".tab-btn.active").getAttribute("data-tab");
+            
+            if (activeTab === "code-tab") {
+                // Validate code submission
             const codeEditor = document.getElementById("id_code");
             const errorElement = document.getElementById("id_error_code");
             
             if (codeEditor) {
-                // Nếu đang ở tab code, kiểm tra nội dung code
-                if (document.getElementById("code-tab").classList.contains("active")) {
                     // Kiểm tra nếu code rỗng thì ngăn form submit và hiển thị lỗi
                     if (codeEditor.value.trim() === "") {
                         e.preventDefault();
@@ -503,46 +519,27 @@ document.addEventListener("DOMContentLoaded", function() {
                         errorElement.style.display = "none";
                     }
                 }
+            } else if (activeTab === "file-tab") {
+                // Validate file submission
+                const fileInput = document.querySelector("input[name=\'sourcefile\']");
+                if (!fileInput || fileInput.value === "") {
+                    e.preventDefault();
+                    alert("' . get_string('fileuploadrequired', 'devcode') . '");
+                    return false;
+                }
             }
             
             // Disable nút submit để tránh click nhiều lần
-            const submitButton = form.querySelector("input[type=\"submit\"]");
+            const submitButton = form.querySelector("input[type=\'submit\']");
             if (submitButton) {
                 submitButton.disabled = true;
-                submitButton.value = "Đang xử lý...";
+                submitButton.value = "' . get_string('processing', 'devcode') . '";
             }
         });
     }
 });
 </script>
-        ');
-
-        // Thêm trường ẩn để track phương thức nộp bài (code hoặc file)
-        $mform->addElement('hidden', 'submission_method', 'code');
-        $mform->setType('submission_method', PARAM_ALPHA);
-
-        // Hiển thị trạng thái nộp bài
-        if ($submission) {
-            // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
-            if ($submission->status === 'plagiarism_detected') {
-                $status_text = 'Potential plagiarism detected';
-            } else {
-                $status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
-            }
-            $mform->addElement(
-                'static',
-                'submission_status',
-                get_string('submissionstatus', 'devcode'),
-                '<div class="submission-status status-' . $submission->status . '">' . $status_text . '</div>'
-            );
-        } else {
-            $mform->addElement(
-                'static',
-                'submission_status',
-                get_string('submissionstatus', 'devcode'),
-                '<div class="submission-status status-notsubmitted">' . get_string('submissionstatus_notsubmitted', 'devcode') . '</div>'
-            );
-        }
+');
 
         // Nút submit và cancel
         $this->add_action_buttons(true, get_string('submitcode', 'devcode'));
@@ -557,6 +554,10 @@ document.addEventListener("DOMContentLoaded", function() {
         // Thêm trường ẩn cho ngôn ngữ
         $mform->addElement('hidden', 'language', $devcode->language);
         $mform->setType('language', PARAM_TEXT);
+
+        // Thêm trường ẩn để theo dõi phương thức nộp bài (code hoặc file)
+        $mform->addElement('hidden', 'submission_method', 'code');
+        $mform->setType('submission_method', PARAM_ALPHA);
     }
 
     /**
@@ -608,5 +609,56 @@ document.addEventListener("DOMContentLoaded", function() {
             default:
                 return "// Viết code của bạn ở đây\n";
         }
+    }
+
+    /**
+     * Lấy danh sách các định dạng file được chấp nhận dựa vào ngôn ngữ
+     * 
+     * @param string $language
+     * @return array
+     */
+    private function get_accepted_file_extensions($language)
+    {
+        $language = devcode_get_language_by_id($language);
+        $language = strtolower($language);
+
+        if (str_contains($language, 'python')) {
+            return array('.py');
+        } else if (str_contains($language, 'java')) {
+            return array('.java');
+        } else if (str_contains($language, 'c++')) {
+            return array('.cpp', '.cc', '.cxx', '.c++', '.h', '.hpp');
+        } else if (str_contains($language, 'c')) {
+            return array('.c', '.h');
+        } else if (str_contains($language, 'javascript')) {
+            return array('.js');
+        } else {
+            return array('.py', '.java', '.cpp', '.c', '.js', '.cc', '.cxx', '.c++', '.h', '.hpp');
+        }
+    }
+
+    /**
+     * Tạo HTML hiển thị các định dạng file được chấp nhận
+     * 
+     * @param string $language
+     * @return string
+     */
+    private function get_accepted_file_extensions_html($language)
+    {
+        $language = strtolower($language);
+        $html = '<div class="accepted-file-types">';
+        $html .= '<strong>' . get_string('acceptedfiletypes', 'devcode') . ':</strong> ';
+
+        $extensions = $this->get_accepted_file_extensions($language);
+        $extension_labels = array();
+
+        foreach ($extensions as $ext) {
+            $extension_labels[] = '<span class="file-extension">' . substr($ext, 1) . '</span>';
+        }
+
+        $html .= implode(', ', $extension_labels);
+        $html .= '</div>';
+
+        return $html;
     }
 }

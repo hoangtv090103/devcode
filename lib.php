@@ -657,7 +657,41 @@ function devcode_send_to_api($submissionid)
 }
 
 /**
- * Hàm gửi request đến backend API
+ * Kiểm tra phần mở rộng của file có phù hợp với ngôn ngữ lập trình không
+ * 
+ * @param string $extension Phần mở rộng file không bao gồm dấu chấm (.)
+ * @param string $language Ngôn ngữ lập trình được yêu cầu
+ * @return bool
+ */
+function devcode_is_valid_file_extension($extension, $language)
+{
+    $language = strtolower($language);
+    $extension = strtolower($extension);
+    
+    // Mapping ngôn ngữ lập trình với các phần mở rộng file hợp lệ
+    $valid_extensions = array(
+        'python' => array('py'),
+        'python 3' => array('py'),
+        'python 3.8.1' => array('py'),
+        'java' => array('java'),
+        'c++' => array('cpp', 'cc', 'cxx', 'c++', 'h', 'hpp'),
+        'cpp' => array('cpp', 'cc', 'cxx', 'c++', 'h', 'hpp'),
+        'c' => array('c', 'h'),
+        'javascript' => array('js'),
+        'js' => array('js')
+    );
+    
+    // Nếu ngôn ngữ không được định nghĩa trong danh sách, cho phép tất cả các định dạng
+    if (!isset($valid_extensions[$language])) {
+        return true;
+    }
+    
+    // Kiểm tra nếu phần mở rộng file nằm trong danh sách hợp lệ
+    return in_array($extension, $valid_extensions[$language]);
+}
+
+/**
+ * Hàm gửi API request
  */
 function devcode_api_request($url, $method = 'GET', $data = null)
 {
