@@ -217,3 +217,5 @@ $string['plagiarism_details'] = 'Xem chi tiết: {$a}';
 $string['view_plagiarism_report'] = 'Xem báo cáo đạo văn';
 $string['partial'] = 'Đúng một phần';
 $string['completed'] = 'Hoàn thành';
+
+$string['submissionstatus_plagiarism'] = 'Phát hiện đạo code';

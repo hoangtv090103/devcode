@@ -283,14 +283,14 @@ if ($mform->is_cancelled()) {
 
     // Xác định phương thức nộp bài (code hoặc file)
     $submission_method = isset($fromform->submission_method) ? $fromform->submission_method : 'code';
-    
+
     // Lấy nội dung bài nộp dựa vào phương thức
     if ($submission_method === 'code') {
         // Lấy mã code từ textarea
         if (!empty($fromform->code)) {
             $code_content = trim($fromform->code);
         }
-        
+
         // Kiểm tra nếu code trống
         if (!is_string($code_content) || trim($code_content) === '') {
             \core\notification::error(get_string('codeempty', 'devcode'));
@@ -301,16 +301,16 @@ if ($mform->is_cancelled()) {
         // Xử lý nộp file
         $fs = get_file_storage();
         $context = context_module::instance($cm->id);
-        
+
         // Lấy thông tin về file được upload
         $file_info = file_get_submitted_draft_itemid('sourcefile');
-        
+
         if (!$file_info) {
             \core\notification::error(get_string('fileuploadrequired', 'devcode'));
             redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
             exit;
         }
-        
+
         // Lấy các file đã upload
         $files = $fs->get_area_files(
             context_user::instance($USER->id)->id,
@@ -320,45 +320,54 @@ if ($mform->is_cancelled()) {
             'id',
             false
         );
-        
+
         if (empty($files)) {
             \core\notification::error(get_string('fileuploadrequired', 'devcode'));
             redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
             exit;
         }
-        
+
         // Lấy file đầu tiên
         $file = reset($files);
         $filename = $file->get_filename();
         $file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        
+
         // Lấy thông tin ngôn ngữ
         $language_name = devcode_get_language_by_id($devcode->language);
-        
+        $language_name = strtolower($language_name);
+
         // Kiểm tra tính hợp lệ của loại file dựa vào ngôn ngữ
         $valid_extension = false;
-        
+        $accepted_extensions = [];
+
         // Kiểm tra phần mở rộng tệp với ngôn ngữ
-        if (stripos($language_name, 'python') !== false && in_array($file_ext, ['py'])) {
-            $valid_extension = true;
-        } else if (stripos($language_name, 'java') !== false && in_array($file_ext, ['java'])) {
-            $valid_extension = true;
-        } else if ((stripos($language_name, 'c++') !== false || stripos($language_name, 'cpp') !== false) && 
-                 in_array($file_ext, ['cpp', 'cc', 'cxx', 'c++', 'h', 'hpp'])) {
-            $valid_extension = true;
-        } else if (stripos($language_name, 'javascript') !== false && in_array($file_ext, ['js'])) {
-            $valid_extension = true;
+        if (str_contains($language_name, 'python')) {
+            $accepted_extensions = ['py'];
+        } else if (str_contains($language_name, 'java')) {
+            $accepted_extensions = ['java'];
+        } else if ((str_contains($language_name, 'c++') || str_contains($language_name, 'cpp'))) {
+            $accepted_extensions = ['cpp', 'cc', 'cxx', 'c++', 'h', 'hpp'];
+        } else if (str_contains($language_name, 'javascript')) {
+            $accepted_extensions = ['js'];
+        } else if (str_contains($language_name, 'c')) {
+            $accepted_extensions = ['c', 'h'];
+        } else if (str_contains($language_name, 'c#')) {
+            $accepted_extensions = ['cs'];
         }
-        
-        if (!$valid_extension) {
+
+        debugging('Accepted extensions: ' . implode(', ', $accepted_extensions));
+        debugging('File extension: ' . $file_ext);
+        debugging('Language name: ' . $language_name);
+
+        if (!in_array($file_ext, $accepted_extensions)) {
             \core\notification::error(get_string('invalidfiletype', 'devcode', $language_name));
             redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
             exit;
         }
-        
+
         // Đọc nội dung file
         $code_content = $file->get_content();
-        
+
         if (empty($code_content)) {
             \core\notification::error(get_string('emptyfile', 'devcode'));
             redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
@@ -375,10 +384,10 @@ if ($mform->is_cancelled()) {
     $submission->timemodified = $now;
     $submission->timecreated = $now;
     $submission->status = 'submitted';
-    
+
     // Thêm thông tin phương thức nộp bài
     $submission->submission_method = $submission_method;
-    
+
     // Lưu bài nộp vào cơ sở dữ liệu
     $submission->id = $DB->insert_record('devcode_submissions', $submission);
 
@@ -511,15 +520,17 @@ if ($submission) {
     } else {
         $status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
     }
-    echo html_writer::tag('div', 
+    echo html_writer::tag(
+        'div',
         html_writer::tag('strong', get_string('submissionstatus', 'devcode') . ': ') .
-        html_writer::tag('span', $status_text, array('class' => 'status-text')),
+            html_writer::tag('span', $status_text, array('class' => 'status-text')),
         array('class' => 'submission-status status-' . $submission->status)
     );
 } else {
-    echo html_writer::tag('div',
+    echo html_writer::tag(
+        'div',
         html_writer::tag('strong', get_string('submissionstatus', 'devcode') . ': ') .
-        html_writer::tag('span', get_string('submissionstatus_notsubmitted', 'devcode'), array('class' => 'status-text')),
+            html_writer::tag('span', get_string('submissionstatus_notsubmitted', 'devcode'), array('class' => 'status-text')),
         array('class' => 'submission-status status-notsubmitted')
     );
 }

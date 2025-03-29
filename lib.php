@@ -668,26 +668,23 @@ function devcode_is_valid_file_extension($extension, $language)
     $language = strtolower($language);
     $extension = strtolower($extension);
     
-    // Mapping ngôn ngữ lập trình với các phần mở rộng file hợp lệ
-    $valid_extensions = array(
-        'python' => array('py'),
-        'python 3' => array('py'),
-        'python 3.8.1' => array('py'),
-        'java' => array('java'),
-        'c++' => array('cpp', 'cc', 'cxx', 'c++', 'h', 'hpp'),
-        'cpp' => array('cpp', 'cc', 'cxx', 'c++', 'h', 'hpp'),
-        'c' => array('c', 'h'),
-        'javascript' => array('js'),
-        'js' => array('js')
-    );
+
     
-    // Nếu ngôn ngữ không được định nghĩa trong danh sách, cho phép tất cả các định dạng
-    if (!isset($valid_extensions[$language])) {
-        return true;
+    // Kiểm tra các ngôn ngữ chung dựa trên chuỗi con
+    if (stripos($language, 'python') !== false) {
+        return in_array($extension, array('py'));
+    } else if (stripos($language, 'java') !== false) {
+        return in_array($extension, array('java'));
+    } else if (stripos($language, 'c++') !== false || stripos($language, 'cpp') !== false) {
+        return in_array($extension, array('cpp', 'cc', 'cxx', 'c++', 'h', 'hpp'));
+    } else if (stripos($language, 'javascript') !== false || stripos($language, 'js') !== false) {
+        return in_array($extension, array('js'));
+    } else if (stripos($language, 'c ') !== false || $language === 'c') {
+        return in_array($extension, array('c', 'h'));
     }
     
-    // Kiểm tra nếu phần mở rộng file nằm trong danh sách hợp lệ
-    return in_array($extension, $valid_extensions[$language]);
+    // Nếu ngôn ngữ không khớp với bất kỳ kiểm tra nào, cho phép tất cả các định dạng
+    return true;
 }
 
 /**
