@@ -13,6 +13,7 @@ $string['description'] = 'Mô tả';
 $string['programminglanguage'] = 'Ngôn ngữ lập trình';
 $string['languagefixed'] = '(cố định cho bài tập này)';
 $string['testcases'] = 'Bộ test';
+$string['testcase'] = 'Bộ test';
 $string['numtestcases'] = 'Số lượng bộ test';
 $string['pointspartest'] = 'Điểm cho mỗi bộ test';
 $string['duedate'] = 'Hạn nộp';
@@ -68,6 +69,8 @@ $string['visibletestcases'] = 'Bộ test mẫu';
 $string['hiddentestcases'] = 'Bộ test ẩn (chỉ hiển thị cho giảng viên)';
 $string['notestcasesyet'] = 'Chưa có bộ test nào được thêm';
 $string['exampletestcasesintro'] = 'Các bộ test mẫu sau đây sẽ được sử dụng để kiểm tra mã nguồn của bạn:';
+$string['cannotdeleteallcases'] = 'Bạn không thể xóa tất cả các bộ test. Phải có ít nhất một bộ test.';
+$string['confirmdeletetestcase'] = 'Bạn có chắc chắn muốn xóa bộ test này không?';
 
 // New strings for improved UI
 $string['exampletestcases'] = 'Bộ test mẫu';

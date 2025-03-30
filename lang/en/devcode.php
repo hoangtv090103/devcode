@@ -13,6 +13,7 @@ $string['description'] = 'Description';
 $string['programminglanguage'] = 'Programming language';
 $string['languagefixed'] = '(fixed for this assignment)';
 $string['testcases'] = 'Test cases';
+$string['testcase'] = 'Test case';
 $string['numtestcases'] = 'Number of Test Cases';
 $string['pointspartest'] = 'Points per Test Case';
 $string['duedate'] = 'Due Date';
@@ -97,6 +98,8 @@ $string['visibletestcases'] = 'Example test cases';
 $string['hiddentestcases'] = 'Hidden test cases (only visible to instructors)';
 $string['notestcasesyet'] = 'No test cases have been added yet';
 $string['exampletestcasesintro'] = 'The following example test cases will be used to test your code:';
+$string['cannotdeleteallcases'] = 'You cannot delete all test cases. At least one test case is required.';
+$string['confirmdeletetestcase'] = 'Are you sure you want to delete this test case?';
 
 // New strings for improved UI
 $string['exampletestcases'] = 'Example test cases';

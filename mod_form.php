@@ -46,15 +46,25 @@ class mod_devcode_mod_form extends moodleform_mod
 
         // Plagiarism detection settings
         $mform->addElement('header', 'plagiarismsettings', get_string('plagiarismsettings', 'devcode'));
-        
+
         // Enable plagiarism detection checkbox
-        $mform->addElement('advcheckbox', 'enable_plagiarism', get_string('enableplagiarism', 'devcode'), 
-            get_string('enableplagiarismdesc', 'devcode'), array(), array(0, 1));
+        $mform->addElement(
+            'advcheckbox',
+            'enable_plagiarism',
+            get_string('enableplagiarism', 'devcode'),
+            get_string('enableplagiarismdesc', 'devcode'),
+            array(),
+            array(0, 1)
+        );
         $mform->setDefault('enable_plagiarism', 0);
-        
+
         // Similarity threshold
-        $mform->addElement('text', 'similarity_threshold', get_string('similaritythreshold', 'devcode'), 
-            array('size' => 3));
+        $mform->addElement(
+            'text',
+            'similarity_threshold',
+            get_string('similaritythreshold', 'devcode'),
+            array('size' => 3)
+        );
         $mform->setType('similarity_threshold', PARAM_INT);
         $mform->addRule('similarity_threshold', get_string('similaritythresholderror', 'devcode'), 'numeric', null, 'client');
         $mform->setDefault('similarity_threshold', 80);
@@ -74,6 +84,15 @@ class mod_devcode_mod_form extends moodleform_mod
 
         $repeatarray = array();
 
+        // Tạo container cho từng test case
+        $repeatarray[] = $mform->createElement('html', '<div class="testcase-container">');
+
+        // Test case title with delete button included
+        $repeatarray[] = $mform->createElement('html', '<div class="testcase-header">
+            <h4>' . get_string('testcase', 'devcode') . ' <span class="testcase-number"></span></h4>
+            <button type="button" class="testcase-delete-btn" data-action="delete-testcase" title="' . get_string('delete') . '">×</button>
+        </div>');
+        
         // Test case input
         $repeatarray[] = $mform->createElement(
             'textarea',
@@ -116,8 +135,19 @@ class mod_devcode_mod_form extends moodleform_mod
             array(0, 1)
         );
 
+        // Hidden field for test case ID
+        $repeatarray[] = $mform->createElement(
+            'hidden',
+            'testcase_id',
+            '0'
+        );
+
         // Add separator between test cases
         $repeatarray[] = $mform->createElement('html', '<hr>');
+
+        // Đóng container
+        $repeatarray[] = $mform->createElement('html', '</div>');
+
 
         // Set types for the fields
         $repeateloptions = array();
@@ -126,6 +156,7 @@ class mod_devcode_mod_form extends moodleform_mod
         $repeateloptions['testcase_points']['type'] = PARAM_FLOAT;
         $repeateloptions['testcase_time_limit']['type'] = PARAM_INT;
         $repeateloptions['testcase_visible']['type'] = PARAM_INT;
+        $repeateloptions['testcase_id']['type'] = PARAM_INT;
 
         // Set default values
         $repeateloptions['testcase_points']['default'] = 10.0;
@@ -149,6 +180,80 @@ class mod_devcode_mod_form extends moodleform_mod
 
         // Add action buttons
         $this->add_action_buttons();
+
+        // Add JavaScript for test case deletion and numbering
+        global $PAGE;
+        // FIXME: Sửa lỗi không xoá testcase trong CSDL
+        $js = "
+        require(['jquery'], function($) {
+            $(document).ready(function() {
+                // Đánh số thứ tự cho các test case
+                function updateTestCaseNumbers() {
+                    $('.testcase-container:visible').each(function(index) {
+                        $(this).find('.testcase-number').text(index + 1);
+                    });
+                }
+                
+                // Gọi hàm đánh số ban đầu
+                updateTestCaseNumbers();
+                
+                // Hàm xử lý xoá test case
+                $(document).on('click', '.testcase-delete-btn', function(e) {
+                    e.preventDefault();
+                    
+                    // Yêu cầu xác nhận trước khi xoá
+                    if (!confirm('" . get_string('confirmdeletetestcase', 'devcode') . "')) {
+                        return; // Nếu hủy bỏ, không làm gì cả
+                    }
+                    
+                    // Tìm container cha gần nhất chứa test case này
+                    var button = $(this);
+                    var testcaseContainer = button.closest('.testcase-container');
+                    
+                    // Kiểm tra xem có ít nhất 2 test case trước khi xoá
+                    if ($('.testcase-container:visible').length > 1) {
+                        // Tìm index an toàn và container cha cho cấu trúc form
+                        var formContainer = testcaseContainer.closest('.fitem').parent();
+                        
+                        // Tìm ID của test case
+                        var testcaseIdInput = testcaseContainer.find('input[name^=\"testcase_id\"]');
+                        if (testcaseIdInput.length > 0) {
+                            var testcaseId = testcaseIdInput.val();
+                            var inputName = testcaseIdInput.attr('name');
+                            var matches = inputName.match(/testcase_id\[(\d+)\]/);
+                            
+                            if (matches && matches.length > 1) {
+                                var index = matches[1];
+                                
+                                if (testcaseId && testcaseId !== '0') {
+                                    // Nếu đây là test case tồn tại, đánh dấu để xoá
+                                    $('<input>').attr({
+                                        type: 'hidden',
+                                        name: 'testcase_delete[' + index + ']',
+                                        value: testcaseId
+                                    }).appendTo(formContainer);
+                                }
+                            }
+                        }
+                        
+                        // Xoá test case container
+                        testcaseContainer.remove();
+                        
+                        // Cập nhật lại số thứ tự
+                        updateTestCaseNumbers();
+                    } else {
+                        // Hiển thị thông báo nếu cố gắng xoá test case cuối cùng
+                        alert('" . get_string('cannotdeleteallcases', 'devcode') . "');
+                    }
+                });
+                
+                // Cập nhật số khi thêm test case mới
+                $('#fitem_id_testcase_add input[type=\"submit\"]').on('click', function() {
+                    // Số thứ tự sẽ được cập nhật sau khi form tải lại
+                });
+            });
+        });";
+        $PAGE->requires->js_amd_inline($js);
     }
 
     /**
@@ -171,9 +276,10 @@ class mod_devcode_mod_form extends moodleform_mod
                 $default_values['testcase_points'][$testcasecount] = $testcase->points;
                 $default_values['testcase_time_limit'][$testcasecount] = $testcase->time_limit;
                 $default_values['testcase_visible'][$testcasecount] = $testcase->visible_to_student;
+                $default_values['testcase_id'][$testcasecount] = $testcase->id; // Store the ID for tracking
                 $testcasecount++;
             }
-            
+
             // Load plagiarism detection settings
             if (isset($default_values['enable_plagiarism'])) {
                 // If enable_plagiarism is already set, don't override it
@@ -215,7 +321,7 @@ class mod_devcode_mod_form extends moodleform_mod
                 }
             }
         }
-        
+
         // Validate plagiarism settings
         if (!empty($data['enable_plagiarism']) && isset($data['similarity_threshold'])) {
             $threshold = $data['similarity_threshold'];

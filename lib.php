@@ -152,30 +152,68 @@ function devcode_update_instance($data, $mform = null)
     } else if (!isset($data->introformat)) {
         $data->introformat = FORMAT_HTML;
     }
+    
+    // Save plagiarism detection settings
+    if (isset($data->enable_plagiarism)) {
+        $data->enable_plagiarism = $data->enable_plagiarism;
+        if (isset($data->similarity_threshold)) {
+            $data->similarity_threshold = $data->similarity_threshold;
+        }
+    } else {
+        $data->enable_plagiarism = 0;
+        $data->similarity_threshold = 80; // Default value
+    }
 
+    // Update the main module record
     $DB->update_record('devcode', $data);
-
-    // Xóa tất cả test cases hiện tại
-    $DB->delete_records('devcode_testcases', array('devcodeid' => $data->id));
-
-    // Thêm test cases mới
-    if (isset($data->testcase_input) && is_array($data->testcase_input)) {
-        for ($i = 0; $i < count($data->testcase_input); $i++) {
-            if (empty($data->testcase_input[$i]) && empty($data->testcase_output[$i])) {
-                continue; // Bỏ qua test case trống
+    
+    // Xử lý bộ test đã đánh dấu xóa trước
+    if (isset($data->testcase_delete) && is_array($data->testcase_delete)) {
+        foreach ($data->testcase_delete as $index => $testcase_id) {
+            if (!empty($testcase_id)) {
+                $DB->delete_records('devcode_testcases', array('id' => $testcase_id, 'devcodeid' => $data->id));
             }
-
+        }
+    }
+    
+    // Process test cases
+    if (isset($data->testcase_input)) {
+        $updated_ids = array();
+        
+        // Step 2: Update or insert test cases
+        foreach ($data->testcase_input as $key => $input) {
+            // Skip empty test cases or ones marked for deletion
+            if (empty($input) && empty($data->testcase_output[$key])) {
+                continue;
+            }
+            
+            // Skip if this test case is in the testcase_delete array
+            if (isset($data->testcase_delete) && is_array($data->testcase_delete) && 
+                isset($data->testcase_id[$key]) && in_array($data->testcase_id[$key], $data->testcase_delete)) {
+                continue;
+            }
+            
             $testcase = new stdClass();
             $testcase->devcodeid = $data->id;
-            $testcase->input = $data->testcase_input[$i];
-            $testcase->output = $data->testcase_output[$i];
-            $testcase->points = isset($data->testcase_points[$i]) ? floatval($data->testcase_points[$i]) : 10.0;
-            $testcase->time_limit = isset($data->testcase_time_limit[$i]) ? intval($data->testcase_time_limit[$i]) : 3000;
-            $testcase->visible_to_student = isset($data->testcase_visible[$i]) ? intval($data->testcase_visible[$i]) : 0;
-            $testcase->timecreated = time();
+            $testcase->input = $input;
+            $testcase->output = $data->testcase_output[$key];
+            $testcase->points = isset($data->testcase_points[$key]) ? floatval($data->testcase_points[$key]) : 10.0;
+            $testcase->time_limit = isset($data->testcase_time_limit[$key]) ? intval($data->testcase_time_limit[$key]) : 3000;
+            $testcase->visible_to_student = isset($data->testcase_visible[$key]) ? intval($data->testcase_visible[$key]) : 0;
             $testcase->timemodified = time();
-
-            $DB->insert_record('devcode_testcases', $testcase);
+            
+            // Check if this is an update or insert
+            if (!empty($data->testcase_id[$key])) {
+                // Update existing
+                $testcase->id = $data->testcase_id[$key];
+                $DB->update_record('devcode_testcases', $testcase);
+                $updated_ids[] = $testcase->id;
+            } else {
+                // Insert new
+                $testcase->timecreated = time();
+                $testcase_id = $DB->insert_record('devcode_testcases', $testcase);
+                $updated_ids[] = $testcase_id;
+            }
         }
     }
 
@@ -227,7 +265,6 @@ function devcode_update_grades($devcode = null, $userid = 0)
         $whereclause .= ' AND s.userid = ?';
     }
 
-    // Sửa SQL để không bị lỗi duplicate ID bằng cách sử dụng DISTINCT ON hoặc GROUP BY
     $sql = "SELECT DISTINCT s.id, s.*
             FROM {devcode_submissions} s
             LEFT JOIN {devcode_submission_results} r ON s.id = r.submissionid" . $whereclause . "
@@ -271,12 +308,9 @@ function devcode_extend_navigation(navigation_node $navref, stdClass $course, st
     }
 
     try {
-        // Sử dụng context_module class đầy đủ
-        $context = \context_module::instance($module->id);
-        if (has_capability('mod/devcode:view', $context)) {
-            $url = $CFG->wwwroot . '/mod/devcode/view.php?id=' . $module->id;
-            $navref->add(get_string('viewsubmissions', 'mod_devcode'), $url, navigation_node::TYPE_SETTING);
-        }
+        // Sử dụng URL mặc định
+        $url = $CFG->wwwroot . '/mod/devcode/view.php?id=' . $module->id;
+        $navref->add(get_string('viewsubmissions', 'mod_devcode'), $url, navigation_node::TYPE_SETTING);
     } catch (Exception $e) {
         // Bỏ qua lỗi nếu có, tránh làm gián đoạn navigation
         return;

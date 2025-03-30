@@ -1545,4 +1545,72 @@
 .editor-with-line-numbers:focus-within {
     border-color: #80bdff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Test case container styling */
+.testcase-container {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #f9f9f9;
+    position: relative;
+}
+
+.testcase-header {
+    border-bottom: 1px solid #eee;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.testcase-header h4 {
+    margin: 0;
+    color: #354A5F;
+    font-size: 1.1em;
+}
+
+.testcase-number {
+    font-weight: bold;
+}
+
+.testcase-delete-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1;
+    background-color: #e2e3e5;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s, background-color 0.2s;
+}
+
+.testcase-delete-btn:hover {
+    color: #c82333;
+    background-color: #d6d8db;
+    transform: scale(1.1);
+}
+
+.testcase-delete-btn:focus {
+    outline: none;
+}
+
+/* Override for test case container in Moodle form */
+#fgroup_id_repeatarray .fitem {
+    margin-bottom: 0;
+}
+
+#fgroup_id_repeatarray hr {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    border-color: #ccc;
 } 
