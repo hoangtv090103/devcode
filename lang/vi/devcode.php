@@ -41,6 +41,7 @@ $string['viewsubmissions'] = 'Xem các bài nộp';
 $string['grading'] = 'Chấm điểm';
 $string['submissionstatus'] = 'Trạng thái nộp bài';
 $string['submissionhistory'] = 'Lịch sử nộp bài';
+$string['yoursubmissionhistory'] = 'Lịch sử nộp bài của bạn';
 $string['testresults'] = 'Kết quả kiểm thử';
 $string['feedback'] = 'Phản hồi';
 $string['gradingsubmission'] = 'Chấm điểm bài nộp';

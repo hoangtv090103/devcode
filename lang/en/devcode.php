@@ -47,8 +47,8 @@ $string['notes'] = 'Notes';
 $string['flagasplagiarism'] = 'Flag as Plagiarism';
 $string['markaspassed'] = 'Mark as Passed';
 $string['backtoplagiarismlist'] = 'Back to Plagiarism List';
-$string['submissionflaggedasplagiarism'] = 'Submission has been flagged as potential plagiarism.';
-$string['submissionmarkedaspassed'] = 'Submission has been marked as passed.';
+$string['submissionflaggedasplagiarism'] = 'Submission flagged as plagiarism';
+$string['submissionmarkedaspassed'] = 'Submission marked as passed';
 $string['filterbyassignment'] = 'Filter by assignment';
 $string['allassignments'] = 'All assignments';
 $string['apply'] = 'Apply';
@@ -70,6 +70,8 @@ $string['viewsubmissions'] = 'View Submissions';
 $string['grading'] = 'Grading';
 $string['submissionstatus'] = 'Submission Status';
 $string['submissionhistory'] = 'Submission History';
+$string['yoursubmissionhistory'] = 'Your Submission History';
+$string['plagiarismdetected'] = 'Plagiarism Detected';  
 $string['testresults'] = 'Test Results';
 $string['feedback'] = 'Feedback';
 $string['gradingsubmission'] = 'Grading Submission';
@@ -125,7 +127,7 @@ $string['submissionstatus_notallowed'] = 'Submission is not allowed at this time
 $string['submissionstatus_completed'] = 'Completed';
 $string['submissionstatus_failed'] = 'Failed';
 $string['submissionstatus_partial'] = 'Partially correct';
-$string['submissionstatus_plagiarism'] = 'Plagiarism';
+$string['submissionstatus_plagiarism'] = 'Potential plagiarism detected';
 $string['submissionstatus_plagiarism_detected'] = 'Potential plagiarism detected';
 $string['submissionsfor'] = 'Submissions for {$a}';
 $string['nostudentsyet'] = 'No students have submitted yet';
@@ -251,8 +253,18 @@ $string['processing'] = 'Your submission is being processed...';
 $string['error'] = 'Error';
 $string['failed'] = 'Failed';
 $string['plagiarism'] = 'Plagiarism detected';
-$string['plagiarism_detected'] = 'Plagiarism detected. Similarity score: {$a}%';
+$string['plagiarism_detected'] = 'Potential plagiarism detected (similarity: {$a}%)';
+$string['plagiarism_detected_notification'] = 'Your submission has been flagged for potential plagiarism. Teachers will review it before grading.';
 $string['plagiarism_details'] = 'View details: {$a}';
 $string['view_plagiarism_report'] = 'View plagiarism report';
+
+// Plagiarism actions
+$string['graderror'] = 'Error occurred while grading the submission';
+$string['eventsubmissionflaggedplagiarism'] = 'Submission flagged as plagiarism';
+$string['eventsubmissionpassedplagiarism'] = 'Submission passed plagiarism check';
+
+// Additional status strings
+$string['partial'] = 'Partially correct';
+$string['completed'] = 'Completed';
 
 ?> 

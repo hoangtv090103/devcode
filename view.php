@@ -24,6 +24,10 @@
 
 require_once('../../config.php');
 require_once(dirname(__FILE__) . '/lib.php');
+require_once($CFG->dirroot . '/lib/classes/output/url_select.php');
+
+// Import required classes
+use \core\output\html_writer;
 
 // Course module id
 $id = required_param('id', PARAM_INT);
@@ -35,7 +39,7 @@ $devcode = $DB->get_record('devcode', array('id' => $cm->instance), '*', MUST_EX
 
 // Set up the page
 require_login($course, true, $cm);
-$context = context_module::instance($cm->id);
+$context = \context_module::instance($cm->id);
 
 // Check capabilities
 $cansubmit = has_capability('mod/devcode:submit', $context);
@@ -78,9 +82,9 @@ echo $OUTPUT->header();
 $language_name = devcode_get_language_by_id($devcode->language);
 
 // Replace simple paragraph with styled highlighted container
-echo html_writer::start_tag('div', array('class' => 'devcode-language-highlight'));
-echo html_writer::tag('span', $language_name, array('class' => 'devcode-language-value'));
-echo html_writer::end_tag('div');
+echo \core\output\html_writer::start_tag('div', array('class' => 'devcode-language-highlight'));
+echo \core\output\html_writer::tag('span', $language_name, array('class' => 'devcode-language-value'));
+echo \core\output\html_writer::end_tag('div');
 
 
 // Display the description more prominently with a header
@@ -90,7 +94,7 @@ echo $OUTPUT->box(format_text($devcode->intro, $devcode->introformat), 'generalb
 // Check due date and display if it exists
 if (!empty($devcode->duedate)) {
     $duedate = userdate($devcode->duedate);
-    echo html_writer::tag('p', get_string('duedate', 'devcode') . ': ' . $duedate, array('class' => 'duedate'));
+    echo \core\output\html_writer::tag('p', get_string('duedate', 'devcode') . ': ' . $duedate, array('class' => 'duedate'));
 }
 
 // Display example test cases
@@ -108,91 +112,167 @@ foreach ($testcases as $testcase) {
 }
 
 if (!empty($visibletestcases)) {
-    echo html_writer::start_tag('div', array('class' => 'testcases visible-testcases'));
-    echo html_writer::tag('p', get_string('exampletestcasesintro', 'devcode'));
+    echo \core\output\html_writer::start_tag('div', array('class' => 'testcases visible-testcases'));
+    echo \core\output\html_writer::tag('p', get_string('exampletestcasesintro', 'devcode'));
 
-    echo html_writer::start_tag('table', array('class' => 'generaltable'));
-    echo html_writer::start_tag('thead');
-    echo html_writer::start_tag('tr');
-    echo html_writer::tag('th', get_string('testcaseinput', 'devcode'));
-    echo html_writer::tag('th', get_string('testcaseoutput', 'devcode'));
-    echo html_writer::tag('th', get_string('testcasepoints', 'devcode'));
-    echo html_writer::tag('th', get_string('testcasetimelimit', 'devcode'));
-    echo html_writer::end_tag('tr');
-    echo html_writer::end_tag('thead');
+    echo \core\output\html_writer::start_tag('table', array('class' => 'generaltable'));
+    echo \core\output\html_writer::start_tag('thead');
+    echo \core\output\html_writer::start_tag('tr');
+    echo \core\output\html_writer::tag('th', get_string('testcaseinput', 'devcode'));
+    echo \core\output\html_writer::tag('th', get_string('testcaseoutput', 'devcode'));
+    echo \core\output\html_writer::tag('th', get_string('testcasepoints', 'devcode'));
+    echo \core\output\html_writer::tag('th', get_string('testcasetimelimit', 'devcode'));
+    echo \core\output\html_writer::end_tag('tr');
+    echo \core\output\html_writer::end_tag('thead');
 
-    echo html_writer::start_tag('tbody');
+    echo \core\output\html_writer::start_tag('tbody');
     foreach ($visibletestcases as $testcase) {
-        echo html_writer::start_tag('tr');
-        echo html_writer::tag('td', s($testcase->input), array('class' => 'testcase-input'));
-        echo html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
-        echo html_writer::tag('td', $testcase->points, array('class' => 'testcase-points'));
-        echo html_writer::tag('td', $testcase->time_limit . ' ms', array('class' => 'testcase-timelimit'));
-        echo html_writer::end_tag('tr');
+        echo \core\output\html_writer::start_tag('tr');
+        echo \core\output\html_writer::tag('td', s($testcase->input), array('class' => 'testcase-input'));
+        echo \core\output\html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
+        echo \core\output\html_writer::tag('td', $testcase->points, array('class' => 'testcase-points'));
+        echo \core\output\html_writer::tag('td', $testcase->time_limit . ' ms', array('class' => 'testcase-timelimit'));
+        echo \core\output\html_writer::end_tag('tr');
     }
-    echo html_writer::end_tag('tbody');
-    echo html_writer::end_tag('table');
-    echo html_writer::end_tag('div');
+    echo \core\output\html_writer::end_tag('tbody');
+    echo \core\output\html_writer::end_tag('table');
+    echo \core\output\html_writer::end_tag('div');
 } else {
-    echo html_writer::tag('p', get_string('notestcasesyet', 'devcode'));
+    echo \core\output\html_writer::tag('p', get_string('notestcasesyet', 'devcode'));
 }
 
 // Display hidden test cases (only for instructors)
 if ($canmanage && !empty($hiddentestcases)) {
     echo $OUTPUT->heading(get_string('hiddentestcases', 'devcode'), 3);
 
-    echo html_writer::start_tag('div', array('class' => 'testcases hidden-testcases'));
-    echo html_writer::start_tag('table', array('class' => 'generaltable'));
-    echo html_writer::start_tag('thead');
-    echo html_writer::start_tag('tr');
-    echo html_writer::tag('th', get_string('testcaseinput', 'devcode'));
-    echo html_writer::tag('th', get_string('testcaseoutput', 'devcode'));
-    echo html_writer::tag('th', get_string('testcasepoints', 'devcode'));
-    echo html_writer::tag('th', get_string('testcasetimelimit', 'devcode'));
-    echo html_writer::end_tag('tr');
-    echo html_writer::end_tag('thead');
+    echo \core\output\html_writer::start_tag('div', array('class' => 'testcases hidden-testcases'));
+    echo \core\output\html_writer::start_tag('table', array('class' => 'generaltable'));
+    echo \core\output\html_writer::start_tag('thead');
+    echo \core\output\html_writer::start_tag('tr');
+    echo \core\output\html_writer::tag('th', get_string('testcaseinput', 'devcode'));
+    echo \core\output\html_writer::tag('th', get_string('testcaseoutput', 'devcode'));
+    echo \core\output\html_writer::tag('th', get_string('testcasepoints', 'devcode'));
+    echo \core\output\html_writer::tag('th', get_string('testcasetimelimit', 'devcode'));
+    echo \core\output\html_writer::end_tag('tr');
+    echo \core\output\html_writer::end_tag('thead');
 
-    echo html_writer::start_tag('tbody');
+    echo \core\output\html_writer::start_tag('tbody');
     foreach ($hiddentestcases as $testcase) {
-        echo html_writer::start_tag('tr');
-        echo html_writer::tag('td', s($testcase->input), array('class' => 'testcase-input'));
-        echo html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
-        echo html_writer::tag('td', $testcase->points, array('class' => 'testcase-points'));
-        echo html_writer::tag('td', $testcase->time_limit . ' ms', array('class' => 'testcase-timelimit'));
-        echo html_writer::end_tag('tr');
+        echo \core\output\html_writer::start_tag('tr');
+        echo \core\output\html_writer::tag('td', s($testcase->input), array('class' => 'testcase-input'));
+        echo \core\output\html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
+        echo \core\output\html_writer::tag('td', $testcase->points, array('class' => 'testcase-points'));
+        echo \core\output\html_writer::tag('td', $testcase->time_limit . ' ms', array('class' => 'testcase-timelimit'));
+        echo \core\output\html_writer::end_tag('tr');
     }
-    echo html_writer::end_tag('tbody');
-    echo html_writer::end_tag('table');
-    echo html_writer::end_tag('div');
+    echo \core\output\html_writer::end_tag('tbody');
+    echo \core\output\html_writer::end_tag('table');
+    echo \core\output\html_writer::end_tag('div');
 }
 
 // Display submission button
 if ($cansubmit) {
-    echo html_writer::start_tag('div', array('class' => 'submitbutton'));
-    $submiturl = new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id));
+    echo \core\output\html_writer::start_tag('div', array('class' => 'submitbutton'));
+    $submiturl = new \moodle_url('/mod/devcode/submit.php', array('id' => $cm->id));
 
     $buttontext = $usersubmission ? get_string('editsubmission', 'devcode') : get_string('submitassignment', 'devcode');
-    echo html_writer::link($submiturl, $buttontext, array('class' => 'btn btn-primary'));
-    echo html_writer::end_tag('div');
+    echo \core\output\html_writer::link($submiturl, $buttontext, array('class' => 'btn btn-primary'));
+    echo \core\output\html_writer::end_tag('div');
 }
 
 // Display other info or links for instructors
 if ($canmanage) {
-    echo html_writer::start_tag('div', array('class' => 'teacheroptions'));
-    echo html_writer::start_tag('ul');
+    echo \core\output\html_writer::start_tag('div', array('class' => 'teacheroptions'));
+    echo \core\output\html_writer::start_tag('ul');
 
     // Link to view all submissions
-    $viewsubmissionsurl = new moodle_url('/mod/devcode/submissions.php', array('id' => $cm->id));
-    echo html_writer::tag('li', html_writer::link($viewsubmissionsurl, get_string('viewallsubmissions', 'devcode')));
+    $viewsubmissionsurl = new \moodle_url('/mod/devcode/submissions.php', array('id' => $cm->id));
+    echo \core\output\html_writer::tag('li', \core\output\html_writer::link($viewsubmissionsurl, get_string('viewallsubmissions', 'devcode')));
     
     // Add link to plagiarism report if plagiarism detection is enabled
     if (!empty($devcode->enable_plagiarism)) {
-        $plagiarismurl = new moodle_url('/mod/devcode/plagiarism_report.php', array('id' => $cm->id));
-        echo html_writer::tag('li', html_writer::link($plagiarismurl, get_string('plagiarismreport', 'devcode')));
+        $plagiarismurl = new \moodle_url('/mod/devcode/plagiarism_report.php', array('id' => $cm->id));
+        echo \core\output\html_writer::tag('li', \core\output\html_writer::link($plagiarismurl, get_string('plagiarismreport', 'devcode')));
     }
 
-    echo html_writer::end_tag('ul');
-    echo html_writer::end_tag('div');
+    echo \core\output\html_writer::end_tag('ul');
+    echo \core\output\html_writer::end_tag('div');
+}
+
+// Display submission history for current user if they have submissions
+if ($cansubmit) {
+    $submission_count = $DB->count_records('devcode_submissions', array(
+        'devcodeid' => $devcode->id,
+        'userid' => $USER->id
+    ));
+
+    if ($submission_count > 0) {
+        // Lấy lịch sử nộp bài
+        $submissions = $DB->get_records(
+            'devcode_submissions',
+            array('devcodeid' => $devcode->id, 'userid' => $USER->id),
+            'timecreated DESC'
+        );
+
+        // Hiển thị bảng lịch sử
+        echo $OUTPUT->heading(get_string('yoursubmissionhistory', 'devcode'), 3);
+
+        echo \core\output\html_writer::start_tag('div', array('class' => 'submission-history-container'));
+        echo \core\output\html_writer::start_tag('table', array('class' => 'generaltable submission-history-table'));
+
+        // Header
+        echo \core\output\html_writer::start_tag('thead');
+        echo \core\output\html_writer::start_tag('tr');
+        echo \core\output\html_writer::tag('th', get_string('submissiontime', 'devcode'));
+        echo \core\output\html_writer::tag('th', get_string('status', 'devcode'));
+        echo \core\output\html_writer::tag('th', get_string('pointsearned', 'devcode'));
+        echo \core\output\html_writer::tag('th', get_string('actions', 'devcode'));
+        echo \core\output\html_writer::end_tag('tr');
+        echo \core\output\html_writer::end_tag('thead');
+
+        // Rows
+        echo \core\output\html_writer::start_tag('tbody');
+        foreach ($submissions as $sub) {
+            echo \core\output\html_writer::start_tag('tr');
+
+            // Thời gian nộp
+            echo \core\output\html_writer::tag('td', userdate($sub->timecreated));
+
+            // Trạng thái
+            $status_class = 'status-' . $sub->status;
+            // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
+            if ($sub->status === 'plagiarism_detected') {
+                $status_text = 'Potential plagiarism detected';
+            } else {
+                // Try to get the string, fall back to the status itself if not found
+                try {
+                    $status_text = get_string($sub->status, 'devcode');
+                } catch (Exception $e) {
+                    $status_text = ucfirst($sub->status); // Fallback to capitalized status name
+                    debugging('Missing string definition for status: ' . $sub->status, DEBUG_DEVELOPER);
+                }
+            }
+            echo \core\output\html_writer::tag('td', \core\output\html_writer::tag('span', $status_text, array('class' => $status_class)));
+
+            // Điểm số
+            $score_text = isset($sub->score) ? $sub->score . '/10' : '-';
+            echo \core\output\html_writer::tag('td', $score_text);
+
+            // Hành động
+            echo \core\output\html_writer::start_tag('td');
+            echo \core\output\html_writer::link(
+                new \moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sub->id)),
+                get_string('viewdetails', 'devcode'),
+                array('class' => 'btn btn-sm btn-secondary')
+            );
+            echo \core\output\html_writer::end_tag('td');
+
+            echo \core\output\html_writer::end_tag('tr');
+        }
+        echo \core\output\html_writer::end_tag('tbody');
+        echo \core\output\html_writer::end_tag('table');
+        echo \core\output\html_writer::end_tag('div');
+    }
 }
 
 // Finish the page

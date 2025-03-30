@@ -391,45 +391,18 @@ if ($mform->is_cancelled()) {
     // Lưu bài nộp vào cơ sở dữ liệu
     $submission->id = $DB->insert_record('devcode_submissions', $submission);
 
-    // Gọi hàm gửi code đến API để chấm
+    // Gọi hàm gửi code đến API để kiểm tra và chấm điểm
     $grading_result = devcode_send_to_api($submission->id);
 
-    // Nếu không dùng API, có thể mô phỏng kết quả chấm
-    if (!$grading_result) {
-        // Giả lập kết quả chấm điểm (chỉ cho mục đích demo)
-        // Trong thực tế, kết quả này sẽ được lấy từ API Judge0
-        $submission = $DB->get_record('devcode_submissions', array('id' => $submission->id));
+    // Kiểm tra kết quả trả về từ API
+    $submission_updated = $DB->get_record('devcode_submissions', array('id' => $submission->id));
 
-        // Chỉ cập nhật nếu chưa có kết quả từ API
-        if ($submission && $submission->status !== 'graded') {
-            $submission->score = 8;  // Điểm số (trên 10)
-            $submission->feedback = get_string('mockresult', 'devcode') . ' 8/10';
-            $submission->status = 'graded';
-            $DB->update_record('devcode_submissions', $submission);
-
-            // Tạo các kết quả test case mô phỏng
-            $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC', '*', 0, 5);
-            $testcase_count = 0;
-
-            foreach ($testcases as $testcase) {
-                $result = new stdClass();
-                $result->submissionid = $submission->id;
-                $result->testcaseid = $testcase->id;
-                $result->passed = ($testcase_count < 4) ? 1 : 0; // 4/5 test cases pass
-                $result->output = ($testcase_count < 4) ? $testcase->output : "Incorrect output";
-                $result->error_message = ($testcase_count < 4) ? "" : "Expected: " . $testcase->output;
-                $result->execution_time = rand(10, 500); // 10-500ms
-                $result->memory_used = rand(1000, 5000); // 1-5MB
-                $result->timecreated = time();
-
-                $DB->insert_record('devcode_submission_results', $result);
-                $testcase_count++;
-            }
-        }
+    // Hiển thị thông báo dựa trên kết quả kiểm tra đạo code
+    if ($submission_updated && $submission_updated->status === 'plagiarism') {
+        \core\notification::warning(get_string('plagiarism_detected_notification', 'devcode'));
+    } else {
+        \core\notification::success(get_string('submissionsuccess', 'devcode'));
     }
-
-    // Hiển thị thông báo thành công - Set session notification BEFORE doing redirect
-    \core\notification::success(get_string('submissionsuccess', 'devcode'));
 
     // Get the submission record to ensure it exists before redirecting
     $submission_exists = $DB->record_exists('devcode_submissions', array('id' => $submission->id));
@@ -601,69 +574,69 @@ if ($submission && !empty($submission->score)) {
 $mform->display();
 
 // Hiển thị lịch sử nộp bài nếu có từ 2 bài nộp trở lên
-$submission_count = $DB->count_records('devcode_submissions', array(
-    'devcodeid' => $devcode->id,
-    'userid' => $USER->id
-));
+// $submission_count = $DB->count_records('devcode_submissions', array(
+//     'devcodeid' => $devcode->id,
+//     'userid' => $USER->id
+// ));
 
-if ($submission_count > 1) {
-    // Lấy lịch sử nộp bài
-    $submissions = $DB->get_records(
-        'devcode_submissions',
-        array('devcodeid' => $devcode->id, 'userid' => $USER->id),
-        'timecreated DESC'
-    );
+// if ($submission_count > 1) {
+//     // Lấy lịch sử nộp bài
+//     $submissions = $DB->get_records(
+//         'devcode_submissions',
+//         array('devcodeid' => $devcode->id, 'userid' => $USER->id),
+//         'timecreated DESC'
+//     );
 
-    // Hiển thị bảng lịch sử
-    echo html_writer::tag('h3', get_string('submissionhistory', 'devcode'));
+//     // Hiển thị bảng lịch sử
+//     echo html_writer::tag('h3', get_string('submissionhistory', 'devcode'));
 
-    echo html_writer::start_tag('table', array('class' => 'submission-history-table'));
+//     echo html_writer::start_tag('table', array('class' => 'submission-history-table'));
 
-    // Header
-    echo html_writer::start_tag('thead');
-    echo html_writer::start_tag('tr');
-    echo html_writer::tag('th', get_string('submissiontime', 'devcode'));
-    echo html_writer::tag('th', get_string('status', 'devcode'));
-    echo html_writer::tag('th', get_string('pointsearned', 'devcode'));
-    echo html_writer::tag('th', get_string('actions', 'devcode'));
-    echo html_writer::end_tag('tr');
-    echo html_writer::end_tag('thead');
+//     // Header
+//     echo html_writer::start_tag('thead');
+//     echo html_writer::start_tag('tr');
+//     echo html_writer::tag('th', get_string('submissiontime', 'devcode'));
+//     echo html_writer::tag('th', get_string('status', 'devcode'));
+//     echo html_writer::tag('th', get_string('pointsearned', 'devcode'));
+//     echo html_writer::tag('th', get_string('actions', 'devcode'));
+//     echo html_writer::end_tag('tr');
+//     echo html_writer::end_tag('thead');
 
-    // Rows
-    echo html_writer::start_tag('tbody');
-    foreach ($submissions as $sub) {
-        echo html_writer::start_tag('tr');
+//     // Rows
+//     echo html_writer::start_tag('tbody');
+//     foreach ($submissions as $sub) {
+//         echo html_writer::start_tag('tr');
 
-        // Thời gian nộp
-        echo html_writer::tag('td', userdate($sub->timecreated));
+//         // Thời gian nộp
+//         echo html_writer::tag('td', userdate($sub->timecreated));
 
-        // Trạng thái
-        $status_class = 'status-' . $sub->status;
-        // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
-        if ($sub->status === 'plagiarism_detected') {
-            $status_text = 'Potential plagiarism detected';
-        } else {
-            $status_text = get_string('submissionstatus_' . $sub->status, 'devcode', userdate($sub->timemodified));
-        }
-        echo html_writer::tag('td', html_writer::tag('span', $status_text, array('class' => $status_class)));
+//         // Trạng thái
+//         $status_class = 'status-' . $sub->status;
+//         // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
+//         if ($sub->status === 'plagiarism_detected') {
+//             $status_text = 'Potential plagiarism detected';
+//         } else {
+//             $status_text = get_string('submissionstatus_' . $sub->status, 'devcode', userdate($sub->timemodified));
+//         }
+//         echo html_writer::tag('td', html_writer::tag('span', $status_text, array('class' => $status_class)));
 
-        // Điểm số
-        $score_text = isset($sub->score) ? $sub->score . '/10' : '-';
-        echo html_writer::tag('td', $score_text);
+//         // Điểm số
+//         $score_text = isset($sub->score) ? $sub->score . '/10' : '-';
+//         echo html_writer::tag('td', $score_text);
 
-        // Hành động
-        echo html_writer::start_tag('td');
-        echo html_writer::link(
-            new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sub->id)),
-            get_string('viewdetails', 'devcode'),
-            array('class' => 'btn btn-sm btn-secondary')
-        );
-        echo html_writer::end_tag('td');
+//         // Hành động
+//         echo html_writer::start_tag('td');
+//         echo html_writer::link(
+//             new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sub->id)),
+//             get_string('viewdetails', 'devcode'),
+//             array('class' => 'btn btn-sm btn-secondary')
+//         );
+//         echo html_writer::end_tag('td');
 
-        echo html_writer::end_tag('tr');
-    }
-    echo html_writer::end_tag('tbody');
-    echo html_writer::end_tag('table');
-}
+//         echo html_writer::end_tag('tr');
+//     }
+//     echo html_writer::end_tag('tbody');
+//     echo html_writer::end_tag('table');
+// }
 
 echo $OUTPUT->footer();
