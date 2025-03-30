@@ -29,6 +29,7 @@ require_once(dirname(__FILE__) . '/lib.php');
 require_once($CFG->libdir . '/accesslib.php');
 
 use \core\output\html_writer;
+use \moodle_url;
 
 // Course Module ID
 $id = required_param('id', PARAM_INT);
@@ -58,7 +59,16 @@ $PAGE->activityheader->set_attrs($activityheader);
 $PAGE->requires->css('/mod/devcode/styles.css');
 
 // Lấy thông tin submission
-$submission = $DB->get_record('devcode_submissions', array('id' => $sid), '*', MUST_EXIST);
+try {
+    $submission = $DB->get_record('devcode_submissions', array('id' => $sid), '*', MUST_EXIST);
+} catch (dml_missing_record_exception $e) {
+    // Handle the case when the submission doesn't exist
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification(get_string('notfound', 'devcode') . ': ' . get_string('submission', 'devcode'), 'error');
+    echo $OUTPUT->continue_button(new moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
+    echo $OUTPUT->footer();
+    exit;
+}
 
 // Kiểm tra quyền xem submission
 $canviewsubmission = has_capability('mod/devcode:manage', $context) ||
@@ -174,24 +184,41 @@ if ($submission->status === 'processing') {
 
 // Hiển thị cảnh báo đạo văn
 if ($submission->status === 'plagiarism') {
-    echo html_writer::start_tag('div', array('class' => 'alert alert-danger'));
+    // Close the info grid before the alert to make it take full width
+    echo html_writer::end_tag('div'); // end devcode-info-grid
+    
+    echo html_writer::start_tag('div', array('class' => 'alert alert-danger full-width-alert'));
     echo html_writer::tag('i', '', array('class' => 'fa fa-exclamation-triangle mr-2'));
-    echo $submission->feedback;
-
-    // Hiển thị link xem chi tiết nếu có
+    
+    // Extract similarity score from the plagiarism record if available
+    $plagiarism_record = $DB->get_record('devcode_plagiarism', array('submission1_id' => $submission->id), '*', IGNORE_MISSING);
+    $similarity_score = $plagiarism_record ? $plagiarism_record->similarity_score : 0;
+    
+    // Generate the plagiarism message with the actual similarity score
+    echo html_writer::tag('div', get_string('plagiarism_detected', 'devcode', number_format($similarity_score, 1)));
+    
+    // Add additional feedback if available (like URLs or additional details)
     if (!empty($submission->plagiarism_url)) {
-        echo html_writer::empty_tag('br');
+        echo html_writer::start_tag('div', array('class' => 'plagiarism-details mt-2'));
+        echo get_string('plagiarism_details', 'devcode', '');
+        echo html_writer::tag('div', html_writer::tag('code', s($submission->plagiarism_url)), array('class' => 'url-container mt-1 mb-2'));
+        echo html_writer::end_tag('div');
+        
         echo html_writer::link(
-            $submission->plagiarism_url,
+            $submission->plagiarism_url, // Use the URL string directly
             get_string('view_plagiarism_report', 'devcode'),
             array('class' => 'btn btn-sm btn-outline-danger mt-2', 'target' => '_blank')
         );
     }
 
     echo html_writer::end_tag('div');
+    
+    // Start a new info grid after the alert
+    echo html_writer::start_tag('div', array('class' => 'devcode-info-grid'));
+} else {
+    // Only close the info grid at the end if there's no plagiarism alert
+    echo html_writer::end_tag('div'); // end devcode-info-grid
 }
-
-echo html_writer::end_tag('div'); // end devcode-info-grid
 
 // Nếu submission bị lỗi, hiển thị thông báo lỗi nổi bật
 if ($submission->status === 'failed' || $submission->status === 'error') {
@@ -199,6 +226,11 @@ if ($submission->status === 'failed' || $submission->status === 'error') {
     echo html_writer::tag('div', get_string('error', 'core'), array('class' => 'devcode-error-heading'));
     echo html_writer::tag('pre', $submission->feedback, array('class' => 'devcode-error-details'));
     echo html_writer::end_tag('div');
+}
+
+// Make sure we don't have an unclosed div if there's a plagiarism alert and no error
+if ($submission->status === 'plagiarism') {
+    echo html_writer::end_tag('div'); // end the new info grid started after the alert
 }
 
 echo html_writer::end_tag('div'); // end card-body
@@ -444,6 +476,7 @@ echo '
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 15px;
+    position: relative;
 }
 
 .devcode-info-item {
@@ -511,6 +544,58 @@ echo '
     overflow: auto;
     margin: 0;
     font-size: 14px;
+}
+
+/* Add styles for the plagiarism alert */
+.alert-danger {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    margin-top: 15px;
+    width: 100%;
+    box-sizing: border-box;
+    grid-column: 1 / -1; /* Make the alert span all columns in grid layouts */
+}
+
+.full-width-alert {
+    margin: 15px 0;
+    padding: 15px 20px;
+    border-radius: 8px;
+    background-color: #fee2e2;
+    border-left: 4px solid #dc3545;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.alert-danger a {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-all;
+}
+
+/* Style for the plagiarism URL display */
+.plagiarism-details {
+    margin-top: 10px;
+}
+
+.url-container {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 8px;
+    border-radius: 4px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.url-container code {
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #e83e8c;
+}
+
+/* Ensure the plagiarism alert is displayed correctly in the info grid */
+.devcode-info-grid .alert {
+    grid-column: 1 / -1;
+    margin-top: 15px;
+    width: 100%;
 }
 
 .devcode-stats-container {

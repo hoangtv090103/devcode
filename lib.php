@@ -523,7 +523,7 @@ function devcode_send_to_api($submissionid)
     // Nếu phát hiện đạo code, cập nhật trạng thái thành "plagiarism"
     if ($plagiarism_detected) {
         // $submission->status = 'plagiarism';
-        $plagiarism_message = get_string('plagiarism_detected', 'mod_devcode', $plagiarism_similarity);
+        $plagiarism_message = get_string('plagiarism_detected', 'mod_devcode', format_string($plagiarism_similarity));
         
         if (!empty($plagiarism_url)) {
             $submission->plagiarism_url = $plagiarism_url;
