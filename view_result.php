@@ -191,11 +191,18 @@ if ($submission->status === 'plagiarism') {
     echo html_writer::tag('i', '', array('class' => 'fa fa-exclamation-triangle mr-2'));
     
     // Extract similarity score from the plagiarism record if available
-    $plagiarism_record = $DB->get_record('devcode_plagiarism', array('submission1_id' => $submission->id), '*', IGNORE_MISSING);
+    // Check both submission1_id and submission2_id fields since the submission could be in either one
+    $plagiarism_record = $DB->get_record_sql(
+        "SELECT * FROM {devcode_plagiarism} 
+         WHERE submission1_id = ? OR submission2_id = ? 
+         ORDER BY similarity_score DESC LIMIT 1",
+        array($submission->id, $submission->id)
+    );
+    
     $similarity_score = $plagiarism_record ? $plagiarism_record->similarity_score : 0;
     
     // Generate the plagiarism message with the actual similarity score
-    echo html_writer::tag('div', get_string('plagiarism_detected', 'devcode', number_format($similarity_score, 1)));
+    echo html_writer::tag('div', get_string('plagiarism_detected', 'devcode', format_float($similarity_score, 1)));
     
     // Add additional feedback if available (like URLs or additional details)
     if (!empty($submission->plagiarism_url)) {
