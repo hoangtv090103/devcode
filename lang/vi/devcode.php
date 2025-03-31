@@ -223,3 +223,5 @@ $string['partial'] = 'Đúng một phần';
 $string['completed'] = 'Hoàn thành';
 
 $string['submissionstatus_plagiarism'] = 'Phát hiện đạo code';
+$string['submissionprocesserror'] = 'Đã xảy ra lỗi khi xử lý bài nộp';
+$string['submissionalreadyreviewed'] = 'Bài nộp này đã được đánh giá và đánh dấu là "{$a}".';

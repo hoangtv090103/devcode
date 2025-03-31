@@ -1,28 +1,15 @@
 <?php
-// This file is part of Moodle - https://moodle.org/
-//
-// Moodle is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Moodle is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 
 /**
  * Displays detailed plagiarism report for a specific submission
  *
  * @package     mod_devcode
- * @copyright   2024 Your Name <your@email.com>
- * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+
  */
 
 defined('MOODLE_INTERNAL') || die();
+
 
 // Ensure the main script has set up the necessary variables
 if (!isset($sid) || !isset($cm) || !isset($devcode) || !isset($plagiarism)) {
@@ -33,6 +20,17 @@ if (!isset($sid) || !isset($cm) || !isset($devcode) || !isset($plagiarism)) {
 $submission = $DB->get_record('devcode_submissions', array('id' => $sid), '*', MUST_EXIST);
 $student = $DB->get_record('user', array('id' => $submission->userid), '*', MUST_EXIST);
 $assignment = $DB->get_record('devcode', array('id' => $submission->devcodeid), '*', MUST_EXIST);
+
+// Check if this submission has been reviewed
+$reviewedCheck = $DB->get_records_sql(
+    "SELECT p.reviewed 
+     FROM {devcode_plagiarism} p
+     WHERE (p.submission1_id = :sid1 OR p.submission2_id = :sid2)
+     AND p.reviewed = 1
+     LIMIT 1",
+    array('sid1' => $sid, 'sid2' => $sid)
+);
+$isReviewed = !empty($reviewedCheck);
 
 // Get plagiarism results for this submission
 $sql = "SELECT p.*, 
@@ -112,13 +110,13 @@ if (empty($results)) {
     echo '<th>' . get_string('actions', 'mod_devcode') . '</th>';
     echo '</tr>';
     echo '</thead>';
-    
+
     echo '<tbody>';
     foreach ($results as $result) {
         echo '<tr>';
         echo '<td>' . $result->compared_submission_id . '</td>';
         echo '<td>' . $result->compared_fullname . '</td>';
-        
+
         // Color-coded similarity
         $class = '';
         if ($result->similarity_score >= 90) {
@@ -128,16 +126,16 @@ if (empty($results)) {
         } else {
             $class = 'info';
         }
-        
+
         echo '<td><span class="badge badge-' . $class . '">' . $result->similarity_score . '%</span></td>';
-        
+
         // Actions
         echo '<td>';
         $compareurl = $CFG->wwwroot . '/mod/devcode/compare_submissions.php?id=' . $cm->id . '&sid1=' . $sid . '&sid2=' . $result->compared_submission_id;
-        echo '<a href="' . $compareurl . '" class="btn btn-sm btn-secondary">' . 
-             get_string('viewsourcecode', 'mod_devcode') . '</a>';
+        echo '<a href="' . $compareurl . '" class="btn btn-sm btn-secondary">' .
+            get_string('viewsourcecode', 'mod_devcode') . '</a>';
         echo '</td>';
-        
+
         echo '</tr>';
     }
     echo '</tbody>';
@@ -163,13 +161,18 @@ $notes = $DB->get_field('devcode_submissions', 'feedback', array('id' => $sid));
 echo '<textarea class="form-control" id="notes" name="notes" rows="4">' . s($notes) . '</textarea>';
 echo '</div>';
 
-// Action buttons
-echo '<div class="form-group">';
-echo '<button type="submit" name="action" value="flag" class="btn btn-danger mr-2">' . 
-    get_string('flagasplagiarism', 'mod_devcode') . '</button>';
-echo '<button type="submit" name="action" value="pass" class="btn btn-success">' . 
-    get_string('markaspassed', 'mod_devcode') . '</button>';
-echo '</div>';
+// Action buttons - only show if not reviewed
+if (!$isReviewed) {
+    echo '<div class="form-group">';
+    echo '<button type="submit" name="action" value="flag" class="btn btn-danger mr-2">' .
+        get_string('flagasplagiarism', 'mod_devcode') . '</button>';
+    echo '<button type="submit" name="action" value="pass" class="btn btn-success">' .
+        get_string('markaspassed', 'mod_devcode') . '</button>';
+    echo '</div>';
+} else {
+    // Show a message that this submission has been reviewed
+    echo '<div class="alert alert-info">' . get_string('submissionalreadyreviewed', 'mod_devcode', $submission->status) . '</div>';
+}
 
 echo '</form>';
 echo '</div>'; // End card-body
@@ -178,7 +181,7 @@ echo '</div>'; // End card
 // Back link
 echo '<div>';
 $reporturl = $CFG->wwwroot . '/mod/devcode/plagiarism_report.php?id=' . $cm->id;
-echo '<a href="' . $reporturl . '" class="btn btn-secondary">' . 
+echo '<a href="' . $reporturl . '" class="btn btn-secondary">' .
     get_string('backtoplagiarismlist', 'mod_devcode') . '</a>';
 echo '</div>';
 

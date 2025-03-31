@@ -262,6 +262,8 @@ $string['view_plagiarism_report'] = 'View plagiarism report';
 $string['graderror'] = 'Error occurred while grading the submission';
 $string['eventsubmissionflaggedplagiarism'] = 'Submission flagged as plagiarism';
 $string['eventsubmissionpassedplagiarism'] = 'Submission passed plagiarism check';
+$string['submissionprocesserror'] = 'Error occurred while processing the submission';
+$string['submissionalreadyreviewed'] = 'This submission has already been reviewed and marked as "{$a}".';
 
 // Additional status strings
 $string['partial'] = 'Partially correct';
