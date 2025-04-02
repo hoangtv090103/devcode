@@ -137,6 +137,17 @@ function devcode_update_instance($data, $mform = null)
     $data->timemodified = time();
     $data->id = $data->instance;
 
+    // Debug log for ALL form data
+    error_log('=== FORM DATA START ===');
+    foreach ($data as $key => $value) {
+        if (is_array($value)) {
+            error_log("$key: " . json_encode($value));
+        } else {
+            error_log("$key: $value");
+        }
+    }
+    error_log('=== FORM DATA END ===');
+
     // Đảm bảo programming_language là chuỗi
     if (isset($data->programming_language)) {
         $data->programming_language = strval($data->programming_language);
@@ -167,29 +178,76 @@ function devcode_update_instance($data, $mform = null)
     // Update the main module record
     $DB->update_record('devcode', $data);
     
-    // Xử lý bộ test đã đánh dấu xóa trước
-    if (isset($data->testcase_delete) && is_array($data->testcase_delete)) {
-        foreach ($data->testcase_delete as $index => $testcase_id) {
-            if (!empty($testcase_id)) {
-                $DB->delete_records('devcode_testcases', array('id' => $testcase_id, 'devcodeid' => $data->id));
+    // Collect all test cases that need to be deleted
+    $testcases_to_delete = array();
+    
+    // Debug log: list all testcases in the database before deletion
+    $current_testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $data->id));
+    error_log('Current testcases in database: ' . count($current_testcases));
+    foreach ($current_testcases as $tc) {
+        error_log("TestCase ID: {$tc->id}, Input: {$tc->input}");
+    }
+    
+    // Process testcases to delete - simplified approach using checkbox
+    error_log('=== CHECKING FOR TESTCASES TO DELETE ===');
+    if (isset($data->testcase_delete) && is_array($data->testcase_delete) && 
+        isset($data->testcase_id) && is_array($data->testcase_id)) {
+        
+        foreach ($data->testcase_delete as $key => $delete_flag) {
+            if ($delete_flag == 1 && isset($data->testcase_id[$key]) && !empty($data->testcase_id[$key])) {
+                $testcase_id = $data->testcase_id[$key];
+                $testcases_to_delete[] = $testcase_id;
+                error_log("Found testcase to delete: $testcase_id at position $key");
             }
         }
     }
     
+    // Delete the marked test cases
+    if (!empty($testcases_to_delete)) {
+        error_log('=== DELETING TESTCASES ===');
+        error_log('Testcases to delete: ' . implode(', ', $testcases_to_delete));
+        
+        foreach ($testcases_to_delete as $testcase_id) {
+            // Get the testcase record to confirm it exists
+            $testcase = $DB->get_record('devcode_testcases', array('id' => $testcase_id, 'devcodeid' => $data->id));
+            if ($testcase) {
+                error_log("Preparing to delete testcase ID: {$testcase_id} with input: {$testcase->input}");
+                $result = $DB->delete_records('devcode_testcases', array('id' => $testcase_id, 'devcodeid' => $data->id));
+                error_log('Delete result: ' . ($result ? 'Success' : 'Failed'));
+                
+                // Verify deletion
+                $check = $DB->record_exists('devcode_testcases', array('id' => $testcase_id));
+                error_log('Verification - Record still exists: ' . ($check ? 'Yes (ERROR)' : 'No (Success)'));
+            } else {
+                error_log('Testcase ID ' . $testcase_id . ' not found or does not belong to devcode instance ' . $data->id);
+            }
+        }
+        
+        // List testcases after deletion
+        $remaining_testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $data->id));
+        error_log('Remaining testcases after deletion: ' . count($remaining_testcases));
+        foreach ($remaining_testcases as $tc) {
+            error_log("TestCase ID: {$tc->id}, Input: {$tc->input}");
+        }
+    } else {
+        error_log('No testcases marked for deletion');
+    }
+    
     // Process test cases
-    if (isset($data->testcase_input)) {
+    if (isset($data->testcase_input) && is_array($data->testcase_input)) {
         $updated_ids = array();
         
-        // Step 2: Update or insert test cases
+        // Update or insert test cases
         foreach ($data->testcase_input as $key => $input) {
-            // Skip empty test cases or ones marked for deletion
+            // Skip empty test cases
             if (empty($input) && empty($data->testcase_output[$key])) {
                 continue;
             }
             
-            // Skip if this test case is in the testcase_delete array
-            if (isset($data->testcase_delete) && is_array($data->testcase_delete) && 
-                isset($data->testcase_id[$key]) && in_array($data->testcase_id[$key], $data->testcase_delete)) {
+            // Skip if this test case is marked for deletion
+            if (!empty($data->testcase_id[$key]) && 
+                in_array($data->testcase_id[$key], $testcases_to_delete)) {
+                error_log('Skipping testcase ' . $data->testcase_id[$key] . ' as it is marked for deletion');
                 continue;
             }
             
@@ -208,11 +266,17 @@ function devcode_update_instance($data, $mform = null)
                 $testcase->id = $data->testcase_id[$key];
                 $DB->update_record('devcode_testcases', $testcase);
                 $updated_ids[] = $testcase->id;
+                
+                // Debug log
+                error_log('Updated testcase ID: ' . $testcase->id);
             } else {
                 // Insert new
                 $testcase->timecreated = time();
                 $testcase_id = $DB->insert_record('devcode_testcases', $testcase);
                 $updated_ids[] = $testcase_id;
+                
+                // Debug log
+                error_log('Inserted new testcase with ID: ' . $testcase_id);
             }
         }
     }

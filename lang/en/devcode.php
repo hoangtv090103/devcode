@@ -269,4 +269,9 @@ $string['submissionalreadyreviewed'] = 'This submission has already been reviewe
 $string['partial'] = 'Partially correct';
 $string['completed'] = 'Completed';
 
+$string['delete'] = 'Delete';
+$string['markfordelete'] = 'Mark for deletion';
+$string['markedfordelete'] = 'Marked for deletion';
+$string['deleteconfirm'] = 'Are you sure you want to delete this test case?';
+
 ?> 

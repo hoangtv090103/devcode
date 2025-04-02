@@ -1550,20 +1550,17 @@
 /* Test case container styling */
 .testcase-container {
     border: 1px solid #ddd;
-    border-radius: 5px;
     padding: 15px;
-    margin-bottom: 15px;
-    background-color: #f9f9f9;
+    margin-bottom: 20px;
+    border-radius: 4px;
     position: relative;
 }
 
 .testcase-header {
-    border-bottom: 1px solid #eee;
-    margin-bottom: 15px;
-    padding-bottom: 5px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 10px;
 }
 
 .testcase-header h4 {
@@ -1572,45 +1569,249 @@
     font-size: 1.1em;
 }
 
-.testcase-number {
+#fitem_id_testcase_add {
+    margin-top: 20px;
+}
+
+/* Style the delete checkbox */
+.fitem[id^="fitem_id_testcase_delete"] {
+    display: flex;
+    align-items: center;
+    background-color: #ffe6e6;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.fitem[id^="fitem_id_testcase_delete"] .fitemtitle {
+    color: #721c24;
     font-weight: bold;
 }
 
-.testcase-delete-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
+.fitem[id^="fitem_id_testcase_delete"] .felement {
+    display: flex;
+    align-items: center;
+}
+
+.fitem[id^="fitem_id_testcase_delete"] .felement input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+}
+
+/* Testcase numbering */
+.testcase-number {
+    font-weight: bold;
+    background-color: #f8f9fa;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-left: 5px;
+}
+
+/* Testcase deletion styling */
+.testcase-delete-container {
+    margin-top: 15px;
+    padding: 12px 15px;
+    background-color: #fff3f3;
+    border: 1px solid #ffcccc;
+    border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.testcase-delete-container:hover {
+    background-color: #ffe6e6;
+    border-color: #ff9999;
+}
+
+.testcase-delete-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #dc3545;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.testcase-delete-label::before {
+    content: "\f1f8"; /* Font Awesome trash icon */
+    font-family: "Font Awesome 5 Free", FontAwesome;
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.fitem[id^="fitem_id_testcase_delete"] {
+    margin: 0;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.fitem[id^="fitem_id_testcase_delete"] .fitemtitle {
+    display: none;
+}
+
+.fitem[id^="fitem_id_testcase_delete"] .felement {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.fitem[id^="fitem_id_testcase_delete"] .form-check {
     padding: 0;
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: bold;
-    line-height: 1;
-    background-color: #e2e3e5;
-    border: none;
-    color: #dc3545;
+}
+
+.fitem[id^="fitem_id_testcase_delete"] input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
     cursor: pointer;
-    transition: color 0.2s, transform 0.2s, background-color 0.2s;
+    accent-color: #dc3545;
 }
 
-.testcase-delete-btn:hover {
-    color: #c82333;
-    background-color: #d6d8db;
-    transform: scale(1.1);
+.testcase-delete-text {
+    font-size: 14px;
+    color: #6c757d;
+    cursor: pointer;
 }
 
-.testcase-delete-btn:focus {
-    outline: none;
+/* Style for marked testcase */
+input[name^="testcase_delete"]:checked ~ .testcase-delete-text {
+    color: #dc3545;
+    font-weight: 600;
 }
 
-/* Override for test case container in Moodle form */
-#fgroup_id_repeatarray .fitem {
-    margin-bottom: 0;
+input[name^="testcase_delete"]:checked + .testcase-delete-container {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
 }
 
-#fgroup_id_repeatarray hr {
-    margin-top: 20px;
-    margin-bottom: 20px;
-    border-color: #ccc;
+/* Testcase container styling */
+.testcase-container {
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    position: relative;
+    background-color: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.testcase-container:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.testcase-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.testcase-header h4 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.testcase-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #3498db;
+    color: white;
+    font-weight: 600;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+/* Deletion confirmation marker */
+.deletion-marker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 0, 0, 0.05);
+    padding: 15px;
+    border-bottom: 1px dashed #ffcccc;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 2;
+}
+
+.deletion-marker.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.deletion-icon {
+    width: 20px;
+    height: 20px;
+    background-color: #dc3545;
+    border-radius: 50%;
+    margin-right: 12px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.deletion-icon::before,
+.deletion-icon::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 2px;
+    background-color: white;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.deletion-icon::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.deletion-text {
+    color: #dc3545;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Testcase marked for deletion */
+.testcase-container.marked-for-deletion {
+    background-color: #fff9f9;
+    border-color: #ffcccc;
+    padding-top: 60px; /* Make room for the deletion marker */
+}
+
+.testcase-container.marked-for-deletion::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(255, 0, 0, 0.03),
+        rgba(255, 0, 0, 0.03) 10px,
+        rgba(255, 0, 0, 0.06) 10px,
+        rgba(255, 0, 0, 0.06) 20px
+    );
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 8px;
 } 

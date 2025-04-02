@@ -87,12 +87,18 @@ class mod_devcode_mod_form extends moodleform_mod
         // Tạo container cho từng test case
         $repeatarray[] = $mform->createElement('html', '<div class="testcase-container">');
 
-        // Test case title with delete button included
+        // Test case title with delete button
         $repeatarray[] = $mform->createElement('html', '<div class="testcase-header">
             <h4>' . get_string('testcase', 'devcode') . ' <span class="testcase-number"></span></h4>
-            <button type="button" class="testcase-delete-btn" data-action="delete-testcase" title="' . get_string('delete') . '">×</button>
         </div>');
         
+        // Test case ID - hidden field
+        $repeatarray[] = $mform->createElement(
+            'hidden',
+            'testcase_id',
+            '0'
+        );
+
         // Test case input
         $repeatarray[] = $mform->createElement(
             'textarea',
@@ -135,12 +141,19 @@ class mod_devcode_mod_form extends moodleform_mod
             array(0, 1)
         );
 
-        // Hidden field for test case ID
+        // Delete button
+        $repeatarray[] = $mform->createElement('html', '<div class="testcase-delete-container">
+            <div class="testcase-delete-label">' . get_string('delete', 'devcode') . '</div>
+        ');
+        
         $repeatarray[] = $mform->createElement(
-            'hidden',
-            'testcase_id',
-            '0'
+            'checkbox',
+            'testcase_delete', 
+            '', 
+            '<span class="testcase-delete-text">' . get_string('markfordelete', 'devcode') . '</span>'
         );
+        
+        $repeatarray[] = $mform->createElement('html', '</div>');
 
         // Add separator between test cases
         $repeatarray[] = $mform->createElement('html', '<hr>');
@@ -157,11 +170,13 @@ class mod_devcode_mod_form extends moodleform_mod
         $repeateloptions['testcase_time_limit']['type'] = PARAM_INT;
         $repeateloptions['testcase_visible']['type'] = PARAM_INT;
         $repeateloptions['testcase_id']['type'] = PARAM_INT;
+        $repeateloptions['testcase_delete']['type'] = PARAM_BOOL;
 
         // Set default values
         $repeateloptions['testcase_points']['default'] = 10.0;
         $repeateloptions['testcase_time_limit']['default'] = 3000;
         $repeateloptions['testcase_visible']['default'] = 0;
+        $repeateloptions['testcase_delete']['default'] = 0;
 
         $this->repeat_elements(
             $repeatarray,
@@ -181,78 +196,61 @@ class mod_devcode_mod_form extends moodleform_mod
         // Add action buttons
         $this->add_action_buttons();
 
-        // Add JavaScript for test case deletion and numbering
+        // Add JavaScript for test case numbering
         global $PAGE;
-        // FIXME: Sửa lỗi không xoá testcase trong CSDL
         $js = "
         require(['jquery'], function($) {
-            $(document).ready(function() {
-                // Đánh số thứ tự cho các test case
-                function updateTestCaseNumbers() {
-                    $('.testcase-container:visible').each(function(index) {
-                        $(this).find('.testcase-number').text(index + 1);
-                    });
-                }
+            function updateTestCaseNumbers() {
+                $('.testcase-container').each(function(index) {
+                    $(this).find('.testcase-number').text(index + 1);
+                });
+            }
+            
+            // Handle checkbox change for deletion
+            $(document).on('change', 'input[name^=\"testcase_delete\"]', function() {
+                var checkbox = $(this);
+                var container = checkbox.closest('.testcase-container');
                 
-                // Gọi hàm đánh số ban đầu
+                if (checkbox.is(':checked')) {
+                    container.addClass('marked-for-deletion');
+                    
+                    // Add visual confirmation
+                    if (!container.find('.deletion-marker').length) {
+                        var marker = $('<div class=\"deletion-marker\"><div class=\"deletion-icon\"></div><div class=\"deletion-text\">" . get_string('markedfordelete', 'devcode') . "</div></div>');
+                        container.prepend(marker);
+                        
+                        // Animate the marker
+                        setTimeout(function() {
+                            marker.addClass('visible');
+                        }, 10);
+                    }
+                } else {
+                    container.removeClass('marked-for-deletion');
+                    container.find('.deletion-marker').removeClass('visible');
+                    
+                    // Remove the marker after animation
+                    setTimeout(function() {
+                        container.find('.deletion-marker').remove();
+                    }, 300);
+                }
+            });
+            
+            $(document).ready(function() {
+                console.log('Document ready - Testcase Manager initialized');
                 updateTestCaseNumbers();
                 
-                // Hàm xử lý xoá test case
-                $(document).on('click', '.testcase-delete-btn', function(e) {
-                    e.preventDefault();
-                    
-                    // Yêu cầu xác nhận trước khi xoá
-                    if (!confirm('" . get_string('confirmdeletetestcase', 'devcode') . "')) {
-                        return; // Nếu hủy bỏ, không làm gì cả
-                    }
-                    
-                    // Tìm container cha gần nhất chứa test case này
-                    var button = $(this);
-                    var testcaseContainer = button.closest('.testcase-container');
-                    
-                    // Kiểm tra xem có ít nhất 2 test case trước khi xoá
-                    if ($('.testcase-container:visible').length > 1) {
-                        // Tìm index an toàn và container cha cho cấu trúc form
-                        var formContainer = testcaseContainer.closest('.fitem').parent();
-                        
-                        // Tìm ID của test case
-                        var testcaseIdInput = testcaseContainer.find('input[name^=\"testcase_id\"]');
-                        if (testcaseIdInput.length > 0) {
-                            var testcaseId = testcaseIdInput.val();
-                            var inputName = testcaseIdInput.attr('name');
-                            var matches = inputName.match(/testcase_id\[(\d+)\]/);
-                            
-                            if (matches && matches.length > 1) {
-                                var index = matches[1];
-                                
-                                if (testcaseId && testcaseId !== '0') {
-                                    // Nếu đây là test case tồn tại, đánh dấu để xoá
-                                    $('<input>').attr({
-                                        type: 'hidden',
-                                        name: 'testcase_delete[' + index + ']',
-                                        value: testcaseId
-                                    }).appendTo(formContainer);
-                                }
-                            }
-                        }
-                        
-                        // Xoá test case container
-                        testcaseContainer.remove();
-                        
-                        // Cập nhật lại số thứ tự
-                        updateTestCaseNumbers();
-                    } else {
-                        // Hiển thị thông báo nếu cố gắng xoá test case cuối cùng
-                        alert('" . get_string('cannotdeleteallcases', 'devcode') . "');
-                    }
+                // Re-initialize after adding new test case
+                $('#fitem_id_testcase_add input[type=\"submit\"]').on('click', function() {
+                    setTimeout(updateTestCaseNumbers, 100);
                 });
                 
-                // Cập nhật số khi thêm test case mới
-                $('#fitem_id_testcase_add input[type=\"submit\"]').on('click', function() {
-                    // Số thứ tự sẽ được cập nhật sau khi form tải lại
+                // Check if any testcases are already marked for deletion (e.g. after validation error)
+                $('input[name^=\"testcase_delete\"]:checked').each(function() {
+                    $(this).trigger('change');
                 });
             });
         });";
+        
         $PAGE->requires->js_amd_inline($js);
     }
 
@@ -277,6 +275,7 @@ class mod_devcode_mod_form extends moodleform_mod
                 $default_values['testcase_time_limit'][$testcasecount] = $testcase->time_limit;
                 $default_values['testcase_visible'][$testcasecount] = $testcase->visible_to_student;
                 $default_values['testcase_id'][$testcasecount] = $testcase->id; // Store the ID for tracking
+                $default_values['testcase_delete'][$testcasecount] = 0; // Not marked for deletion
                 $testcasecount++;
             }
 
@@ -304,6 +303,15 @@ class mod_devcode_mod_form extends moodleform_mod
     function validation($data, $files)
     {
         $errors = parent::validation($data, $files);
+
+        // Validate test cases for deletion
+        if (isset($data['testcase_delete']) && is_array($data['testcase_delete'])) {
+            foreach ($data['testcase_delete'] as $key => $value) {
+                if ($value != 0 && $value != 1) {
+                    $errors["testcase_delete[$key]"] = 'Invalid value for test case deletion field';
+                }
+            }
+        }
 
         // Validate test case data
         if (isset($data['testcase_points'])) {

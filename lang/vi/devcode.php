@@ -225,3 +225,8 @@ $string['completed'] = 'Hoàn thành';
 $string['submissionstatus_plagiarism'] = 'Phát hiện đạo code';
 $string['submissionprocesserror'] = 'Đã xảy ra lỗi khi xử lý bài nộp';
 $string['submissionalreadyreviewed'] = 'Bài nộp này đã được đánh giá và đánh dấu là "{$a}".';
+
+$string['delete'] = 'Xóa';
+$string['markfordelete'] = 'Đánh dấu để xóa';
+$string['markedfordelete'] = 'Đã đánh dấu để xóa';
+$string['deleteconfirm'] = 'Bạn có chắc chắn muốn xóa bộ test này không?';
