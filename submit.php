@@ -369,7 +369,8 @@ if ($mform->is_cancelled()) {
     $submission->language = $devcode->language;
     $submission->timemodified = $now;
     $submission->timecreated = $now;
-    $submission->status = 'submitted';
+    $submission->status = 'processing';
+    $submission->feedback = get_string('processing', 'devcode', '');
 
     // Thêm thông tin phương thức nộp bài
     $submission->submission_method = $submission_method;
@@ -377,18 +378,21 @@ if ($mform->is_cancelled()) {
     // Lưu bài nộp vào cơ sở dữ liệu
     $submission->id = $DB->insert_record('devcode_submissions', $submission);
 
-    // Gọi hàm gửi code đến API để kiểm tra và chấm điểm
-    $grading_result = devcode_send_to_api($submission->id);
+    // Set initial status to "processing"
+    $submission->status = 'processing';
+    $submission->feedback = get_string('processing', 'devcode', '');
+    $DB->update_record('devcode_submissions', $submission);
 
-    // Kiểm tra kết quả trả về từ API
-    $submission_updated = $DB->get_record('devcode_submissions', array('id' => $submission->id));
+    // Trigger asynchronous processing via a separate API call
+    $async_check_data = array(
+        'submission_id' => $submission->id,
+        'async' => true
+    );
+    $async_url = $CFG->devcode['api_base_url'] . $CFG->devcode['api_endpoints']['async_processing'];
+    devcode_api_request($async_url, 'POST', $async_check_data);
 
-    // Hiển thị thông báo dựa trên kết quả kiểm tra đạo code
-    if ($submission_updated && $submission_updated->status === 'plagiarism') {
-        \core\notification::warning(get_string('plagiarism_detected_notification', 'devcode'));
-    } else {
-        \core\notification::success(get_string('submissionsuccess', 'devcode'));
-    }
+    // Always show success message since processing is happening asynchronously
+    \core\notification::success(get_string('submissionsuccess', 'devcode'));
 
     // Get the submission record to ensure it exists before redirecting
     $submission_exists = $DB->record_exists('devcode_submissions', array('id' => $submission->id));

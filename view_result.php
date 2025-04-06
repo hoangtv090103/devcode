@@ -155,16 +155,51 @@ echo html_writer::end_tag('div');
 
 // Hiển thị thông báo đang xử lý nếu submission đang ở trạng thái processing
 if ($submission->status === 'processing') {
-    echo html_writer::start_tag('div', array('class' => 'alert alert-info'));
+    echo html_writer::start_tag('div', array('class' => 'alert alert-info', 'id' => 'processing-alert'));
     echo html_writer::tag('i', '', array('class' => 'fa fa-spinner fa-spin mr-2'));
     echo get_string('processing', 'devcode');
+    echo html_writer::start_tag('div', array('class' => 'progress mt-2'));
+    echo html_writer::tag('div', '', array(
+        'class' => 'progress-bar progress-bar-striped progress-bar-animated',
+        'role' => 'progressbar',
+        'style' => 'width: 100%'
+    ));
+    echo html_writer::end_tag('div');
     echo html_writer::end_tag('div');
 
-    // JavaScript để tự động làm mới trang sau 5 giây
+    // JavaScript to check submission status via AJAX
+    $ajax_params = array(
+        'submissionid' => $submission->id,
+        'sesskey' => sesskey()
+    );
+    $ajax_url = new moodle_url('/mod/devcode/ajax/check_submission_status.php', $ajax_params);
+
     $PAGE->requires->js_init_code('
-        setTimeout(function() {
-            location.reload();
-        }, 5000);
+        // Function to check submission status
+        function checkSubmissionStatus() {
+            fetch("' . $ajax_url . '", {
+                method: "GET",
+                credentials: "same-origin"
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status && data.status !== "processing") {
+                    // Status changed, reload the page to show results
+                    location.reload();
+                } else {
+                    // Still processing, check again in 2 seconds
+                    setTimeout(checkSubmissionStatus, 2000);
+                }
+            })
+            .catch(error => {
+                console.error("Error checking submission status:", error);
+                // On error, retry after 5 seconds
+                setTimeout(checkSubmissionStatus, 5000);
+            });
+        }
+        
+        // Start checking status
+        checkSubmissionStatus();
     ');
 }
 

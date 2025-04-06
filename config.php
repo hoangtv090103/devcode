@@ -34,6 +34,7 @@ $CFG->devcode = [
         'submissions' => '/api/v1/submissions/',
         'languages' => '/api/v1/j0/languages',
         'statuses' => '/api/v1/j0/statuses',
+        'async_processing' => '/api/v1/submissions/async-process',
     ],
     
     // Thời gian timeout cho kết nối API (giây)
