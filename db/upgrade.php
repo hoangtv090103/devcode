@@ -97,6 +97,22 @@ function xmldb_devcode_upgrade($oldversion) {
         // Update version
         upgrade_mod_savepoint(true, 20250327011, 'devcode');
     }
+    
+    // Remove the devcode_student_stats table as it's been moved to report_devcodereports
+    if ($oldversion < 20250409002) {
+        // Check if we can drop the table (ensure migration is complete)
+        $reportsTable = new xmldb_table('report_devcodereports_stats');
+        if ($dbman->table_exists($reportsTable)) {
+            // The new table exists, so we can safely drop the old one
+            $table = new xmldb_table('devcode_student_stats');
+            if ($dbman->table_exists($table)) {
+                $dbman->drop_table($table);
+            }
+        }
+        
+        // Update version
+        upgrade_mod_savepoint(true, 20250409002, 'devcode');
+    }
 
     return true;
 } 
