@@ -33,6 +33,35 @@ $string['similaritythresholderror'] = 'Ngưỡng phải là một số từ 1 đ
 $string['plagiarismreport'] = 'Báo cáo đạo văn';
 $string['similarityscore'] = 'Điểm tương đồng';
 $string['flaggedsubmissions'] = 'Bài nộp bị đánh dấu';
+$string['comparesubmissions'] = 'So sánh bài nộp';
+$string['codecomparison'] = 'So sánh mã nguồn';
+$string['codecomparisoninfo'] = 'Chế độ xem này làm nổi bật các điểm tương đồng giữa hai bài nộp.';
+$string['backtoplagiarismreport'] = 'Quay lại báo cáo đạo văn';
+$string['plagiarismdetailreport'] = 'Báo cáo chi tiết đạo văn';
+$string['submissiondetails'] = 'Chi tiết bài nộp';
+$string['similarsubmissions'] = 'Bài nộp tương đồng';
+$string['nosimilarsubmissionsfound'] = 'Không tìm thấy bài nộp tương đồng.';
+$string['viewsourcecode'] = 'Xem mã nguồn';
+$string['teachernotes'] = 'Ghi chú của giảng viên';
+$string['notes'] = 'Ghi chú';
+$string['flagasplagiarism'] = 'Đánh dấu là đạo văn';
+$string['markaspassed'] = 'Đánh dấu là đạt';
+$string['backtoplagiarismlist'] = 'Quay lại danh sách đạo văn';
+$string['submissionflaggedasplagiarism'] = 'Bài nộp bị đánh dấu là đạo văn';
+$string['submissionmarkedaspassed'] = 'Bài nộp được đánh dấu là đạt';
+$string['filterbyassignment'] = 'Lọc theo bài tập';
+$string['allassignments'] = 'Tất cả bài tập';
+$string['apply'] = 'Áp dụng';
+$string['noplagiarismfound'] = 'Không phát hiện đạo văn.';
+$string['maxsimilarity'] = 'Độ tương đồng tối đa';
+$string['matchescount'] = 'Số lượng khớp';
+$string['invalidaction'] = 'Hành động không hợp lệ.';
+$string['invalidaccess'] = 'Truy cập không hợp lệ.';
+$string['plagiarismnotenabled'] = 'Phát hiện đạo văn chưa được bật cho bài tập này.';
+$string['allplagiarismreports'] = 'Tất cả báo cáo đạo văn';
+$string['noplagiarismdetected'] = 'Không phát hiện đạo văn.';
+$string['assignment'] = 'Bài tập';
+$string['submissionid'] = 'ID bài nộp';
 
 // View strings
 $string['submitassignment'] = 'Nộp bài';
@@ -42,6 +71,7 @@ $string['grading'] = 'Chấm điểm';
 $string['submissionstatus'] = 'Trạng thái nộp bài';
 $string['submissionhistory'] = 'Lịch sử nộp bài';
 $string['yoursubmissionhistory'] = 'Lịch sử nộp bài của bạn';
+$string['plagiarismdetected'] = 'Phát hiện đạo văn';  
 $string['testresults'] = 'Kết quả kiểm thử';
 $string['feedback'] = 'Phản hồi';
 $string['gradingsubmission'] = 'Chấm điểm bài nộp';
@@ -97,6 +127,7 @@ $string['submissionstatus_notallowed'] = 'Không được phép nộp bài vào 
 $string['submissionstatus_completed'] = 'Hoàn thành';
 $string['submissionstatus_failed'] = 'Thất bại';
 $string['submissionstatus_partial'] = 'Đúng một phần';
+$string['submissionstatus_plagiarism'] = 'Phát hiện có khả năng đạo văn';
 $string['submissionstatus_plagiarism_detected'] = 'Phát hiện có khả năng đạo văn';
 $string['submissionsfor'] = 'Bài nộp cho {$a}';
 $string['nostudentsyet'] = 'Chưa có sinh viên nộp bài';
@@ -119,8 +150,13 @@ $string['submission'] = 'Bài nộp';
 $string['codetab'] = 'Mã nguồn';
 $string['filetab'] = 'Tệp';
 $string['sourcefile'] = 'Tệp mã nguồn';
+$string['fileuploadhelp'] = 'Tải lên tệp mã nguồn của bạn tại đây. Đảm bảo rằng tệp chứa toàn bộ mã giải pháp của bạn.';
+$string['fileuploadrequired'] = 'Vui lòng tải lên một tệp mã nguồn';
+$string['acceptedfiletypes'] = 'Loại tệp được chấp nhận';
 $string['fileuploadinstructions'] = 'Tải lên tệp mã nguồn của bạn. Các loại tệp được chấp nhận: .py, .java, .cpp, .c, .js';
 $string['filenotfound'] = 'Không tìm thấy tệp đã tải lên. Vui lòng thử lại.';
+$string['emptyfile'] = 'Tệp đã tải lên trống. Vui lòng kiểm tra tệp của bạn và thử lại.';
+$string['invalidfiletype'] = 'Loại tệp không hợp lệ cho {$a}. Vui lòng tải lên tệp có phần mở rộng đúng.';
 
 // Results display strings
 $string['gradingresults'] = 'Kết quả chấm điểm';
@@ -216,17 +252,25 @@ $string['processing'] = 'Bài nộp của bạn đang được xử lý...';
 $string['error'] = 'Lỗi';
 $string['failed'] = 'Không đạt';
 $string['plagiarism'] = 'Phát hiện đạo code';
-$string['plagiarism_detected'] = 'Phát hiện đạo code. Độ tương đồng: {$a}%';
+$string['plagiarism_detected'] = 'Phát hiện có khả năng đạo văn (độ tương đồng: {$a}%)';
+$string['plagiarism_detected_notification'] = 'Bài nộp của bạn đã bị đánh dấu là có khả năng đạo văn. Giảng viên sẽ xem xét trước khi chấm điểm.';
 $string['plagiarism_details'] = 'Xem chi tiết: {$a}';
 $string['view_plagiarism_report'] = 'Xem báo cáo đạo văn';
-$string['partial'] = 'Đúng một phần';
-$string['completed'] = 'Hoàn thành';
 
-$string['submissionstatus_plagiarism'] = 'Phát hiện đạo code';
+// Plagiarism actions
+$string['graderror'] = 'Đã xảy ra lỗi khi chấm điểm bài nộp';
+$string['eventsubmissionflaggedplagiarism'] = 'Bài nộp bị đánh dấu là đạo văn';
+$string['eventsubmissionpassedplagiarism'] = 'Bài nộp đã vượt qua kiểm tra đạo văn';
 $string['submissionprocesserror'] = 'Đã xảy ra lỗi khi xử lý bài nộp';
 $string['submissionalreadyreviewed'] = 'Bài nộp này đã được đánh giá và đánh dấu là "{$a}".';
+
+// Additional status strings
+$string['partial'] = 'Đúng một phần';
+$string['completed'] = 'Hoàn thành';
 
 $string['delete'] = 'Xóa';
 $string['markfordelete'] = 'Đánh dấu để xóa';
 $string['markedfordelete'] = 'Đã đánh dấu để xóa';
 $string['deleteconfirm'] = 'Bạn có chắc chắn muốn xóa bộ test này không?';
+
+$string['checking_plagiarism'] = 'Đang kiểm tra đạo văn...';
