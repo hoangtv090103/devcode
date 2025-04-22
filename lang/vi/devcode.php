@@ -274,3 +274,22 @@ $string['markedfordelete'] = 'Đã đánh dấu để xóa';
 $string['deleteconfirm'] = 'Bạn có chắc chắn muốn xóa bộ test này không?';
 
 $string['checking_plagiarism'] = 'Đang kiểm tra đạo văn...';
+
+// Admin settings for Judge0 and Dolos
+$string['judge0_settings'] = 'Cài đặt API Judge0';
+$string['judge0_settings_desc'] = 'Cấu hình cho dịch vụ chấm điểm mã nguồn Judge0';
+$string['judge0_api_url'] = 'URL API Judge0';
+$string['judge0_api_url_desc'] = 'Địa chỉ URL của dịch vụ API Judge0';
+$string['judge0_api_key'] = 'Khóa API Judge0';
+$string['judge0_api_key_desc'] = 'Khóa API để xác thực với dịch vụ Judge0';
+$string['judge0_timeout'] = 'Thời gian chờ Judge0';
+$string['judge0_timeout_desc'] = 'Thời gian tối đa (tính bằng giây) để chờ phản hồi từ API Judge0';
+
+$string['dolos_settings'] = 'Cài đặt kiểm tra đạo code Dolos';
+$string['dolos_settings_desc'] = 'Cấu hình cho dịch vụ kiểm tra đạo code Dolos';
+$string['dolos_api_url'] = 'URL API Dolos';
+$string['dolos_api_url_desc'] = 'Địa chỉ URL của dịch vụ API Dolos';
+$string['dolos_api_key'] = 'Khóa API Dolos';
+$string['dolos_api_key_desc'] = 'Khóa API để xác thực với dịch vụ Dolos (nếu cần)';
+$string['dolos_timeout'] = 'Thời gian chờ Dolos';
+$string['dolos_timeout_desc'] = 'Thời gian tối đa (tính bằng giây) để chờ phản hồi từ API Dolos';

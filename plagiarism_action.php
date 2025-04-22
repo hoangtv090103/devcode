@@ -8,11 +8,12 @@
 
  */
 
-require('../../config.php');
+require('../../config.php'); // This already includes moodle_url class
 require_once($CFG->dirroot . '/mod/devcode/lib.php');
+require_once($CFG->dirroot . '/mod/devcode/judge0_api.php');
 require_once($CFG->libdir . '/moodlelib.php'); // For print_error
 use core\output\notification;
-use context_module;
+use core\context\module as context_module;
 
 // Parameters
 $id = required_param('id', PARAM_INT); // Course module id
@@ -81,63 +82,45 @@ if ($action === 'flag') {
         $DB->update_record('devcode_plagiarism', $record);
     }
     
-    // Process the submission via API
-    if (!isset($CFG->devcode) || !isset($CFG->devcode['api_base_url'])) {
-        require_once(dirname(__FILE__) . '/config.php');
-    }
-    
-    $api_base_url = $CFG->devcode['api_base_url'];
-    $api_endpoint = isset($CFG->devcode['api_endpoints']['submissions']) 
-        ? $CFG->devcode['api_endpoints']['submissions'] 
-        : '/api/v1/submissions/';
-        
-    $api_url = $api_base_url . $api_endpoint . $sid . '/process';
-    
     // Get the testcases for this submission's assignment
     $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id));
-    $testcasesFormatted = array();
     
-    foreach ($testcases as $testcase) {
-        $testcasesFormatted[] = array(
-            'id' => $testcase->id,
-            'input' => $testcase->input,
-            'output' => $testcase->output,
-            'points' => (float)$testcase->points,
-            'time_limit' => (int)$testcase->time_limit
-        );
-    }
+    // Process the submission through judge0_api functions
+    require_once(dirname(__FILE__) . '/config.php');
     
-    // Prepare request body with relevant data
-    $requestData = [
-        'submission_id' => $sid,
-        'action' => 'process',
-        'reviewed' => true,
-        'status' => 'graded',
-        'testcases' => $testcasesFormatted // Required field according to the Pydantic schema
-    ];
+    // Use Judge0 API to grade the submission
+    if (!empty($testcases)) {
+        $result = devcode_grade_with_judge0($submission, $testcases, $submission->language, $devcode);
     
-    $response = devcode_api_request($api_url, 'POST', $requestData);
-    
-    if (isset($response['error'])) {
-        // Handle API error
-        debugging('API error when processing submission: ' . print_r($response, true), DEBUG_DEVELOPER);
+        if (!$result) {
+            // Handle grading error
+            debugging('Error occurred while grading the submission', DEBUG_DEVELOPER);
         
         // Use a default error message if the string is missing
         $errorMessage = get_string_manager()->string_exists('submissionprocesserror', 'mod_devcode') 
             ? get_string('submissionprocesserror', 'mod_devcode') 
             : 'Error occurred while processing the submission';
             
-        redirect($CFG->wwwroot . '/mod/devcode/plagiarism_report.php?id=' . $id . '&sid=' . $sid,
-            $errorMessage, null, notification::NOTIFY_ERROR);
+            // Use string concatenation for URL instead of moodle_url object
+            $redirecturl = $CFG->wwwroot . '/mod/devcode/plagiarism_report.php?id=' . $id . '&sid=' . $sid;
+            redirect($redirecturl, $errorMessage, null, notification::NOTIFY_ERROR);
         exit;
+        }
     }
     
     // Set the message
     $message = get_string('submissionmarkedaspassed', 'mod_devcode');
     $messagetype = notification::NOTIFY_SUCCESS;
 } else {
-    // Invalid action
-    print_error('invalidaction', 'mod_devcode');
+    // Invalid action - use redirect with error notification instead of print_error
+    $errorMessage = get_string_manager()->string_exists('invalidaction', 'mod_devcode') 
+        ? get_string('invalidaction', 'mod_devcode') 
+        : 'Invalid action specified';
+    
+    // Use string concatenation for URL instead of moodle_url object
+    $redirecturl = $CFG->wwwroot . '/mod/devcode/plagiarism_report.php?id=' . $id . '&sid=' . $sid;
+    redirect($redirecturl, $errorMessage, null, notification::NOTIFY_ERROR);
+    exit;
 }
 
 // Update the submission
@@ -163,6 +146,6 @@ if ($action === 'flag') {
 $event->trigger();
 */
 
-// Redirect back to the plagiarism report
+// Redirect back to the plagiarism report - use string concatenation for URL
 $returnurl = $CFG->wwwroot . '/mod/devcode/plagiarism_report.php?id=' . $id . '&sid=' . $sid;
 redirect($returnurl, $message, null, $messagetype); 

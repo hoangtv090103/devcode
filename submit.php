@@ -22,6 +22,13 @@ use core\notification;
 use core\context\module as context_module;
 use core\context\user as context_user;
 
+// Kiểm tra và xử lý khi tham số id bị thiếu
+if (!isset($_GET['id']) && !isset($_POST['id'])) {
+    // Không tìm thấy tham số id, chuyển hướng về trang chính của khóa học với thông báo lỗi
+    $course_url = new \moodle_url('/course/view.php', array('id' => 1)); // ID 1 là trang chủ site
+    redirect($course_url, get_string('missingidparam', 'devcode', 'id'), null, \core\output\notification::NOTIFY_ERROR);
+}
+
 $id = required_param('id', PARAM_INT); // Course Module ID
 
 // Lấy thông tin course module, course, và devcode
@@ -378,36 +385,49 @@ if ($mform->is_cancelled()) {
     // Lưu bài nộp vào cơ sở dữ liệu
     $submission->id = $DB->insert_record('devcode_submissions', $submission);
 
-    // Set initial status to "processing"
+    // Process the submission (plagiarism check + grading)
     $submission->status = 'processing';
     $submission->feedback = get_string('processing', 'devcode', '');
     $DB->update_record('devcode_submissions', $submission);
 
-    // Trigger asynchronous processing via a separate API call
-    $async_check_data = array(
-        'submission_id' => $submission->id,
-        'async' => true
-    );
-    $async_url = $CFG->devcode['api_base_url'] . $CFG->devcode['api_endpoints']['async_processing'];
-    devcode_api_request($async_url, 'POST', $async_check_data);
-
-    // Always show success message since processing is happening asynchronously
-    \core\notification::success(get_string('submissionsuccess', 'devcode'));
-
-    // Get the submission record to ensure it exists before redirecting
-    $submission_exists = $DB->record_exists('devcode_submissions', array('id' => $submission->id));
-    $cm_exists = $DB->record_exists('course_modules', array('id' => $cm->id));
-
-    if ($submission_exists && $cm_exists) {
-        // Chuyển hướng đến trang kết quả thay vì trang xem bài tập
-        redirect(new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submission->id)));
-    } else {
-        // Fallback if the submission or course module doesn't exist
-        redirect(new moodle_url('/course/view.php', array('id' => $course->id)));
+    // Check for plagiarism first
+    $plagiarism_detected = false;
+    if ($devcode->enable_plagiarism) {
+        debugging('Starting plagiarism detection for submission: ' . $submission->id, DEBUG_DEVELOPER);
+        $plagiarism_detected = devcode_check_plagiarism($submission->id);
     }
+    
+    // If no plagiarism detected, proceed with grading
+    if (!$plagiarism_detected) {
+        debugging('No plagiarism detected, proceeding with grading for submission: ' . $submission->id, DEBUG_DEVELOPER);
+        
+        // Get test cases for the assignment
+        $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC');
+        
+        // Perform grading using Judge0 direct integration
+        devcode_grade_with_judge0($submission, $testcases, $submission->language, $devcode);
+    }
+
+    // Always show success message since processing is happening synchronously
+    $message = get_string('submissionsuccess', 'devcode');
+    $notification = new \core\output\notification($message, \core\output\notification::NOTIFY_SUCCESS);
+    
+    // Make sure to include header before notification if not already done
+    echo $OUTPUT->header();
+    echo $OUTPUT->render($notification);
+    
+    // Create the result URL as a string
+    $result_url = $CFG->wwwroot . '/mod/devcode/view_result.php?id=' . $cm->id . '&sid=' . $submission->id;
+
+    // Add a JavaScript redirect instead of using redirect() function
+    echo '<script>window.setTimeout(function() { window.location.href = "' . $result_url . '"; }, 2000);</script>';
+    
+    // Close the page properly
+    echo $OUTPUT->footer();
+    exit;
 }
 
-// Hiển thị form
+// Display the form
 echo $OUTPUT->header();
 
 // Hiển thị tên bài tập và đề bài
@@ -560,73 +580,8 @@ if ($submission && !empty($submission->score)) {
     echo html_writer::end_tag('div'); // grading-results
 }
 
-// Hiển thị form nộp bài
+// Display the submission form
 $mform->display();
 
-// Hiển thị lịch sử nộp bài nếu có từ 2 bài nộp trở lên
-// $submission_count = $DB->count_records('devcode_submissions', array(
-//     'devcodeid' => $devcode->id,
-//     'userid' => $USER->id
-// ));
-
-// if ($submission_count > 1) {
-//     // Lấy lịch sử nộp bài
-//     $submissions = $DB->get_records(
-//         'devcode_submissions',
-//         array('devcodeid' => $devcode->id, 'userid' => $USER->id),
-//         'timecreated DESC'
-//     );
-
-//     // Hiển thị bảng lịch sử
-//     echo html_writer::tag('h3', get_string('submissionhistory', 'devcode'));
-
-//     echo html_writer::start_tag('table', array('class' => 'submission-history-table'));
-
-//     // Header
-//     echo html_writer::start_tag('thead');
-//     echo html_writer::start_tag('tr');
-//     echo html_writer::tag('th', get_string('submissiontime', 'devcode'));
-//     echo html_writer::tag('th', get_string('status', 'devcode'));
-//     echo html_writer::tag('th', get_string('pointsearned', 'devcode'));
-//     echo html_writer::tag('th', get_string('actions', 'devcode'));
-//     echo html_writer::end_tag('tr');
-//     echo html_writer::end_tag('thead');
-
-//     // Rows
-//     echo html_writer::start_tag('tbody');
-//     foreach ($submissions as $sub) {
-//         echo html_writer::start_tag('tr');
-
-//         // Thời gian nộp
-//         echo html_writer::tag('td', userdate($sub->timecreated));
-
-//         // Trạng thái
-//         $status_class = 'status-' . $sub->status;
-//         // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
-//         if ($sub->status === 'plagiarism_detected') {
-//             $status_text = 'Potential plagiarism detected';
-//         } else {
-//             $status_text = get_string('submissionstatus_' . $sub->status, 'devcode', userdate($sub->timemodified));
-//         }
-//         echo html_writer::tag('td', html_writer::tag('span', $status_text, array('class' => $status_class)));
-
-//         // Điểm số
-//         $score_text = isset($sub->score) ? $sub->score . '/10' : '-';
-//         echo html_writer::tag('td', $score_text);
-
-//         // Hành động
-//         echo html_writer::start_tag('td');
-//         echo html_writer::link(
-//             new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sub->id)),
-//             get_string('viewdetails', 'devcode'),
-//             array('class' => 'btn btn-sm btn-secondary')
-//         );
-//         echo html_writer::end_tag('td');
-
-//         echo html_writer::end_tag('tr');
-//     }
-//     echo html_writer::end_tag('tbody');
-//     echo html_writer::end_tag('table');
-// }
-
+// Footer is properly called once at the end
 echo $OUTPUT->footer();

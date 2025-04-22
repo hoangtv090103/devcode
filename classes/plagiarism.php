@@ -43,15 +43,16 @@ class mod_devcode_plagiarism {
         $submission = $DB->get_record('devcode_submissions', array('id' => $submissionid), '*', MUST_EXIST);
         $submissioncode = $this->normalize_code($submission->code);
         
-        // Get all other submissions for this devcode assignment
+        // Get all other submissions for this devcode assignment from different users
         $params = array(
             'devcodeid' => $this->devcode->id,
-            'id' => $submissionid  // Exclude the current submission
+            'id' => $submissionid,       // Exclude the current submission
+            'userid' => $submission->userid // Exclude submissions from the same user
         );
         
         $othersubmissions = $DB->get_records_select(
             'devcode_submissions', 
-            'devcodeid = :devcodeid AND id != :id',
+            'devcodeid = :devcodeid AND id != :id AND userid != :userid',
             $params
         );
         
@@ -149,17 +150,27 @@ class mod_devcode_plagiarism {
     public function store_results($submissionid, $results) {
         global $DB;
         
-        // Delete existing results
-        $DB->delete_records('devcode_plagiarism', array('submission_id' => $submissionid));
+        // Delete existing results where this submission is either submission1 or submission2
+        $DB->delete_records_select(
+            'devcode_plagiarism', 
+            'submission1_id = :subid1 OR submission2_id = :subid2',
+            array('subid1' => $submissionid, 'subid2' => $submissionid)
+        );
+        
+        // Get the submission to get its devcodeid
+        $submission = $DB->get_record('devcode_submissions', array('id' => $submissionid), 'devcodeid', MUST_EXIST);
         
         // Insert new results
         foreach ($results as $result) {
             $record = new stdClass();
-            $record->submission_id = $submissionid;
-            $record->compared_with = $result['submission_id'];
-            $record->similarity = $result['similarity'];
+            $record->submission1_id = $submissionid;
+            $record->submission2_id = $result['submission_id'];
+            $record->similarity_score = $result['similarity'];
             $record->details = isset($result['details']) ? $result['details'] : '';
-            $record->timedetected = time();
+            $record->flagged = 1;
+            $record->timecreated = time();
+            $record->timemodified = time();
+            $record->devcodeid = $submission->devcodeid; // Add devcodeid field
             
             $DB->insert_record('devcode_plagiarism', $record);
         }

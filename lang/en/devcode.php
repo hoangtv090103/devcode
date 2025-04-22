@@ -276,4 +276,29 @@ $string['deleteconfirm'] = 'Are you sure you want to delete this test case?';
 
 $string['checking_plagiarism'] = 'Checking plagiarism...';
 
+// Error messages
+$string['missingidparam'] = 'Missing required parameter: {$a}';
+
+$string['systemerror'] = 'A system error occurred during processing. Please try again later or contact your instructor if the problem persists.';
+$string['errordetailsstaff'] = 'The following technical error details are only visible to staff:';
+
+// Admin settings for Judge0 and Dolos
+$string['judge0_settings'] = 'Judge0 API Settings';
+$string['judge0_settings_desc'] = 'Configure settings for the Judge0 code execution service';
+$string['judge0_api_url'] = 'Judge0 API URL';
+$string['judge0_api_url_desc'] = 'The URL of the Judge0 API service';
+$string['judge0_api_key'] = 'Judge0 API Key';
+$string['judge0_api_key_desc'] = 'API key for authenticating with Judge0 service';
+$string['judge0_timeout'] = 'Judge0 Timeout';
+$string['judge0_timeout_desc'] = 'Maximum time (in seconds) to wait for Judge0 API responses';
+
+$string['dolos_settings'] = 'Dolos Plagiarism Detection Settings';
+$string['dolos_settings_desc'] = 'Configure settings for the Dolos plagiarism detection service';
+$string['dolos_api_url'] = 'Dolos API URL';
+$string['dolos_api_url_desc'] = 'The URL of the Dolos API service';
+$string['dolos_api_key'] = 'Dolos API Key';
+$string['dolos_api_key_desc'] = 'API key for authenticating with Dolos service (if required)';
+$string['dolos_timeout'] = 'Dolos Timeout';
+$string['dolos_timeout_desc'] = 'Maximum time (in seconds) to wait for Dolos API responses';
+
 ?>
