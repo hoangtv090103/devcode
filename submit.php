@@ -15,12 +15,14 @@ require_once($CFG->dirroot . '/mod/devcode/classes/form/submission_form.php');
 // Required imports for context and file handling
 require_once($CFG->libdir . '/accesslib.php');
 require_once($CFG->libdir . '/filelib.php');
+require_once($CFG->dirroot . '/lib/moodlelib.php');
 
 // Import core classes
 use core\output\html_writer;
 use core\notification;
 use core\context\module as context_module;
 use core\context\user as context_user;
+use moodle_url;
 
 // Kiểm tra và xử lý khi tham số id bị thiếu
 if (!isset($_GET['id']) && !isset($_POST['id'])) {
@@ -390,22 +392,37 @@ if ($mform->is_cancelled()) {
     $submission->feedback = get_string('processing', 'devcode', '');
     $DB->update_record('devcode_submissions', $submission);
 
-    // Check for plagiarism first
-    $plagiarism_detected = false;
-    if ($devcode->enable_plagiarism) {
-        debugging('Starting plagiarism detection for submission: ' . $submission->id, DEBUG_DEVELOPER);
-        $plagiarism_detected = devcode_check_plagiarism($submission->id);
-    }
+    // Extend time limit for processing
+    $original_time_limit = ini_get('max_execution_time');
+    set_time_limit(300); // 5 minutes
     
-    // If no plagiarism detected, proceed with grading
-    if (!$plagiarism_detected) {
-        debugging('No plagiarism detected, proceeding with grading for submission: ' . $submission->id, DEBUG_DEVELOPER);
+    try {
+        // Check for plagiarism first
+        $plagiarism_detected = false;
+        if ($devcode->enable_plagiarism) {
+            debugging('Starting plagiarism detection for submission: ' . $submission->id, DEBUG_DEVELOPER);
+            $plagiarism_detected = devcode_check_plagiarism($submission->id);
+        }
         
-        // Get test cases for the assignment
-        $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC');
-        
-        // Perform grading using Judge0 direct integration
-        devcode_grade_with_judge0($submission, $testcases, $submission->language, $devcode);
+        // If no plagiarism detected, proceed with grading
+        if (!$plagiarism_detected) {
+            debugging('No plagiarism detected, proceeding with grading for submission: ' . $submission->id, DEBUG_DEVELOPER);
+            
+            // Get test cases for the assignment
+            $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC');
+            
+            // Perform grading using Judge0 direct integration
+            devcode_grade_with_judge0($submission, $testcases, $submission->language, $devcode);
+        }
+    } catch (Exception $e) {
+        debugging('Error during submission processing: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        // Update submission to show error
+        $submission->status = 'error';
+        $submission->feedback = get_string('error') . ': ' . $e->getMessage();
+        $DB->update_record('devcode_submissions', $submission);
+    } finally {
+        // Reset to original time limit
+        set_time_limit($original_time_limit);
     }
 
     // Always show success message since processing is happening synchronously

@@ -97,11 +97,11 @@ function devcode_get_user_grades($devcode, $userid=0) {
         $user_select = "";
     }
     
-    $sql = "SELECT u.id as userid, s.grade as rawgrade, s.timemodified as dategraded
+    $sql = "SELECT u.id as userid, s.score as rawgrade, s.timemodified as dategraded
             FROM {user} u
             JOIN {devcode_submissions} s ON s.userid = u.id
             WHERE s.devcodeid = :devcodeid AND s.status = 'graded' $user_select
-            GROUP BY u.id, s.grade, s.timemodified";
+            GROUP BY u.id, s.score, s.timemodified";
     
     return $DB->get_records_sql($sql, $params);
 }
@@ -129,7 +129,7 @@ function devcode_grade_submission($devcode, $userid, $result) {
     }
 
     // Default values
-    $grade = 0;
+    $score = 0;
     $status = 'error';
     $feedback = '';
     
@@ -140,28 +140,28 @@ function devcode_grade_submission($devcode, $userid, $result) {
         
         switch ($status_id) {
             case 3: // Accepted
-                $grade = $devcode->grade;
+                $score = $devcode->grade;
                 $status = 'graded';
                 $feedback = 'Accepted';
                 break;
             case 4: // Wrong Answer
-                $grade = 0;
+                $score = 0;
                 $status = 'graded';
                 $feedback = 'Wrong Answer';
                 break;
             case 5: // Time Limit Exceeded
-                $grade = 0;
+                $score = 0;
                 $status = 'graded';
                 $feedback = 'Time Limit Exceeded';
                 break;
             case 6: // Compilation Error
-                $grade = 0;
+                $score = 0;
                 $status = 'graded';
                 $feedback = 'Compilation Error: ' . 
                     (isset($result['result']['compile_output']) ? $result['result']['compile_output'] : '');
                 break;
             default: // Other errors
-                $grade = 0;
+                $score = 0;
                 $status = 'graded';
                 $feedback = 'Error: ' . $status_description;
                 break;
@@ -172,19 +172,19 @@ function devcode_grade_submission($devcode, $userid, $result) {
     
     // Update submission record
     $submission->status = $status;
-    $submission->grade = $grade;
+    $submission->score = $score;
     $submission->feedback = $feedback;
-        $submission->timemodified = time();
+    $submission->timemodified = time();
     $submission->teacher = $USER->id;
         
     // Save submission
-        $DB->update_record('devcode_submissions', $submission);
+    $DB->update_record('devcode_submissions', $submission);
         
     // Update grade in gradebook
     devcode_update_grades($devcode, $userid);
         
-        return true;
-    }
+    return true;
+}
 
 /**
  * Process all student submissions for a DevCode instance

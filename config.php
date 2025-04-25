@@ -35,10 +35,12 @@ $CFG->devcode = [
 
     // Dolos API Configuration
     'dolos' => [
-        'api_url' => 'https://dolos.ugent.be/api',
-        'timeout' => 30,
-        'max_poll_attempts' => 60,
-        'poll_interval' => 1,
+        'dolos_api_url' => 'https://dolos.ugent.be/api', // Base URL without /api
+        'dolos_api_key' => '', // Add your API key here if you have one
+        'dolos_timeout' => 120, // Increased timeout for larger submissions
+        'dolos_max_poll_attempts' => 30, // Increased number of polling attempts
+        'dolos_poll_interval' => 5, // 5 seconds between polling attempts
+        'dolos_threshold' => 0.8, // 80% similarity threshold
     ],
 
     // Plagiarism detection options
