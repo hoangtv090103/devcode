@@ -73,17 +73,6 @@ if ($ADMIN->fulltree) {
         PARAM_URL
     ));
 
-    // API Key cho Dolos (nếu cần)
-    $default_dolos_key = isset($CFG->devcode['dolos']['api_key']) ? 
-                        $CFG->devcode['dolos']['api_key'] : '';
-    $settings->add(new admin_setting_configpasswordunmask(
-        'mod_devcode/dolos_api_key',
-        get_string('dolos_api_key', 'mod_devcode', null, true),
-        get_string('dolos_api_key_desc', 'mod_devcode', null, true),
-        $default_dolos_key,
-        PARAM_TEXT
-    ));
-
     // Timeout cho Dolos
     $default_dolos_timeout = isset($CFG->devcode['dolos']['timeout']) ? 
                             $CFG->devcode['dolos']['timeout'] : 30;

@@ -11,42 +11,59 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+// Lấy cài đặt từ settings nếu có
+$judge0_api_url = get_config('mod_devcode', 'judge0_api_url') ?: 'https://judge0-ce.p.rapidapi.com';
+$judge0_api_key = get_config('mod_devcode', 'judge0_api_key') ?: 'b7cb79bc20msh631e775baf24956p192284jsnc6b0aa67f960';
+$judge0_timeout = get_config('mod_devcode', 'judge0_timeout') ?: 45;
+$dolos_api_url = get_config('mod_devcode', 'dolos_api_url') ?: 'https://dolos.ugent.be/api';
+$dolos_timeout = get_config('mod_devcode', 'dolos_timeout') ?: 120;
+
 // Thiết lập kết nối backend API
 $CFG->devcode = [
-    // URL gốc của backend API
-    'api_base_url' => 'http://localhost:8000',
-
-    // API endpoints
-    'api_endpoints' => [
-        'submissions' => '/api/v1/submissions/',
-        'languages' => '/api/v1/j0/languages',
-        'statuses' => '/api/v1/j0/statuses',
-        'async_processing' => '/api/v1/submissions/async-process',
-    ],
 
     // Judge0 API Configuration
     'judge0' => [
-        'api_url' => 'https://judge0-ce.p.rapidapi.com', // RapidAPI endpoint
-        'api_key' => 'b7cb79bc20msh631e775baf24956p192284jsnc6b0aa67f960', // Replace with your RapidAPI key
-        'timeout' => 45, // Tăng timeout để xử lý kết nối chậm
-        'max_wait' => 60, // Tăng thời gian chờ tối đa để xử lý submission
-        'poll_interval' => 3, // Tăng khoảng thời gian giữa các lần poll để tránh rate limit
+        'api_url' => $judge0_api_url,
+        'api_key' => $judge0_api_key,
+        'timeout' => $judge0_timeout,
+        'max_wait' => 60,
+        'poll_interval' => 3,
+        // Headers for API requests
+        'headers' => function () {
+            $headers = [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ];
+
+            // Thêm API key vào header nếu có
+            $api_key = get_config('mod_devcode', 'judge0_api_key');
+            if (!empty($api_key)) {
+                $headers['X-RapidAPI-Key'] = $api_key;
+                $headers['X-RapidAPI-Host'] = parse_url(get_config('mod_devcode', 'judge0_api_url') ?: 'https://judge0-ce.p.rapidapi.com', PHP_URL_HOST);
+            }
+
+            return $headers;
+        },
     ],
 
     // Dolos API Configuration
     'dolos' => [
-        'dolos_api_url' => 'https://dolos.ugent.be/api', // Base URL without /api
-        'dolos_api_key' => '', // Add your API key here if you have one
-        'dolos_timeout' => 120, // Increased timeout for larger submissions
-        'dolos_max_poll_attempts' => 30, // Increased number of polling attempts
-        'dolos_poll_interval' => 5, // 5 seconds between polling attempts
-        'dolos_threshold' => 0.8, // 80% similarity threshold
+        'api_url' => $dolos_api_url,
+        'timeout' => $dolos_timeout,
+        'max_poll_attempts' => 30,
+        'poll_interval' => 5,
+        'threshold' => 0.8,
+        // Headers for API requests (không cần API key)
+        'headers' => [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ],
     ],
 
     // Plagiarism detection options
     'plagiarism' => [
         'enabled' => true,
-        'threshold' => 0.7, // similarity threshold (0.0 to 1.0)
+        'threshold' => 0.7,
         'language_mapping' => [
             'python' => 'python',
             'java' => 'java',
