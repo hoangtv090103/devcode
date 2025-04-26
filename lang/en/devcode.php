@@ -145,6 +145,31 @@ $string['time_limit_exceeded'] = 'Time limit exceeded';
 $string['memory_limit_exceeded'] = 'Memory limit exceeded';
 $string['wrong_answer'] = 'Wrong answer';
 
+// Status strings for specific DevCode status values
+$string['accepted'] = 'Accepted';
+$string['partially_accepted'] = 'Partially Accepted';
+$string['partially_correct'] = 'Partially Correct';
+$string['time_limit'] = 'Time Limit Exceeded';
+$string['memory_limit'] = 'Memory Limit Exceeded';
+$string['compile_error'] = 'Compilation Error';
+$string['pending'] = 'Pending';
+
+// Status strings for submission status_id
+$string['submissionstatus_accepted'] = 'Accepted';
+$string['submissionstatus_wrong_answer'] = 'Wrong Answer';
+$string['submissionstatus_time_limit'] = 'Time Limit Exceeded';
+$string['submissionstatus_memory_limit'] = 'Memory Limit Exceeded';
+$string['submissionstatus_compile_error'] = 'Compilation Error';
+$string['submissionstatus_runtime_error'] = 'Runtime Error';
+$string['submissionstatus_pending'] = 'Pending';
+$string['submissionstatus_processing'] = 'Processing';
+$string['submissionstatus_partially_accepted'] = 'Partially Accepted';
+
+// Judge0 feedback strings
+$string['allteststpassed'] = 'All tests passed successfully!';
+$string['someteststpassed'] = '{$a->passed} out of {$a->total} tests passed';
+$string['noteststpassed'] = 'No tests have been passed';
+
 // New submission interface strings
 $string['submission'] = 'Submission';
 $string['codetab'] = 'Code';
@@ -300,5 +325,7 @@ $string['dolos_api_key'] = 'Dolos API Key';
 $string['dolos_api_key_desc'] = 'API key for authenticating with Dolos service (if required)';
 $string['dolos_timeout'] = 'Dolos Timeout';
 $string['dolos_timeout_desc'] = 'Maximum time (in seconds) to wait for Dolos API responses';
+
+$string['submissionstatus_6'] = 'Partially Accepted';
 
 ?>

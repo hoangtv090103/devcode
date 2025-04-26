@@ -24,7 +24,11 @@ function devcode_check_plagiarism($submissionid) {
             $devcode->course = $cm->course;
         }
         if (empty($devcode->enable_plagiarism)) return false;
-        $language = !empty($devcode->language) ? $devcode->language : $submission->language;
+        
+        // Handle either language or language_id field
+        $language = !empty($devcode->language) ? $devcode->language : 
+                   (isset($submission->language_id) ? $submission->language_id : $submission->language);
+        
         $params = [$devcode->id, $submission->userid, $submission->id, $devcode->id, $submission->userid, $submission->id];
         $others = $DB->get_records_sql(
             "SELECT s.* FROM {devcode_submissions} s
@@ -94,7 +98,12 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
         "username" => "user_" . $submission->userid
     ]];
     foreach ($others as $o) {
-        if ($o->language != $submission->language) continue;
+        // Check if languages match, supporting both language and language_id fields
+        $current_lang = isset($submission->language_id) ? $submission->language_id : $submission->language;
+        $other_lang = isset($o->language_id) ? $o->language_id : $o->language;
+        
+        if ($other_lang != $current_lang) continue;
+        
         $subs[] = [
             "id" => (string)$o->id,
             "filename" => "submission_{$o->id}.$ext",
@@ -231,9 +240,30 @@ function devcode_normalize_language_for_dolos($language) {
     global $CFG;
     if (is_numeric($language)) $language = devcode_get_language_by_id($language);
     $language = strtolower(trim(preg_replace('/\(.*\)/', '', $language)));
-    foreach ($CFG->devcode['plagiarism']['language_mapping'] as $k => $v) {
-        if (strpos($language, $k) !== false) return $v;
+    
+    // Check if plagiarism configuration exists
+    if (!isset($CFG->devcode) || !is_array($CFG->devcode)) {
+        debugging('DevCode configuration not found in $CFG->devcode', DEBUG_DEVELOPER);
+        return 'generic';
     }
+    
+    if (!isset($CFG->devcode['plagiarism']) || !is_array($CFG->devcode['plagiarism'])) {
+        debugging('Plagiarism configuration not found in $CFG->devcode[\'plagiarism\']', DEBUG_DEVELOPER);
+        return 'generic';
+    }
+    
+    if (!isset($CFG->devcode['plagiarism']['language_mapping']) || !is_array($CFG->devcode['plagiarism']['language_mapping'])) {
+        debugging('Language mapping not found in plagiarism configuration', DEBUG_DEVELOPER);
+        return 'generic';
+    }
+    
+    // Check if there's a direct mapping for this language
+    foreach ($CFG->devcode['plagiarism']['language_mapping'] as $pattern => $mapped) {
+        if (stripos($language, $pattern) !== false) {
+            return $mapped;
+        }
+    }
+    
     return 'generic';
 }
 

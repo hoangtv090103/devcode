@@ -22,7 +22,7 @@ if ($ADMIN->fulltree) {
         get_string('judge0_settings_desc', 'mod_devcode', null, true)
     ));
 
-    // Đường dẫn API Judge0
+    // Đường dẫn API Judge0 - Lấy giá trị mặc định từ config.php
     $default_judge0_url = isset($CFG->devcode['judge0']['api_url']) ? 
                           $CFG->devcode['judge0']['api_url'] : 'https://judge0-ce.p.rapidapi.com';
     $settings->add(new admin_setting_configtext(
@@ -33,9 +33,9 @@ if ($ADMIN->fulltree) {
         PARAM_URL
     ));
 
-    // API Key cho Judge0
+    // API Key cho Judge0 - Lấy giá trị mặc định từ config.php
     $default_judge0_key = isset($CFG->devcode['judge0']['api_key']) ? 
-                          $CFG->devcode['judge0']['api_key'] : '';
+                          $CFG->devcode['judge0']['api_key'] : 'b7cb79bc20msh631e775baf24956p192284jsnc6b0aa67f960';
     $settings->add(new admin_setting_configpasswordunmask(
         'mod_devcode/judge0_api_key',
         get_string('judge0_api_key', 'mod_devcode', null, true),

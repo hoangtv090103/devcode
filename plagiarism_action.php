@@ -90,7 +90,12 @@ if ($action === 'flag') {
     
     // Use Judge0 API to grade the submission
     if (!empty($testcases)) {
-        $result = devcode_grade_with_judge0($submission, $testcases, $submission->language, $devcode);
+        // Update submission with language_id if using 'language' field
+        if (!isset($submission->language_id) && isset($submission->language)) {
+            $submission->language_id = $submission->language;
+        }
+        
+        $result = devcode_grade_with_judge0($submission, $devcode, $context);
     
         if (!$result) {
             // Handle grading error

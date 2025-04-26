@@ -64,7 +64,8 @@ if (!$canviewsubmission) {
 }
 
 // Lấy thông tin ngôn ngữ
-$language_name = devcode_get_language_by_id($submission->language);
+$language_id = isset($submission->language_id) ? $submission->language_id : $submission->language;
+$language_name = devcode_get_language_by_id($language_id);
 
 // Lấy kết quả test cases nếu có
 $test_results = $DB->get_records('devcode_submission_results', array('submissionid' => $submission->id));
@@ -149,7 +150,43 @@ switch ($submission->status) {
 }
 
 echo html_writer::start_tag('div', array('class' => 'submission-status'));
-echo html_writer::tag('span', get_string($submission->status, 'devcode'), array('class' => $status_class));
+// Check if status is not empty before using it as a string identifier
+if (!empty($submission->status)) {
+    // Convert numeric status codes to their string equivalents if needed
+    $status_value = $submission->status;
+    if (is_numeric($status_value)) {
+        // Map numeric status codes to string equivalents
+        $status_map = [
+            1 => 'accepted',
+            2 => 'wrong_answer',
+            3 => 'time_limit',
+            4 => 'memory_limit',
+            5 => 'compile_error',
+            6 => 'partially_accepted',
+            7 => 'runtime_error',
+            8 => 'pending',
+            9 => 'processing'
+        ];
+        if (isset($status_map[$status_value])) {
+            $status_value = $status_map[$status_value];
+        }
+    }
+    
+    // Try to get a specialized submission status string first
+    $status_string_id = 'submissionstatus_' . $status_value;
+    if (get_string_manager()->string_exists($status_string_id, 'devcode')) {
+        $status_string = get_string($status_string_id, 'devcode');
+    } else if (get_string_manager()->string_exists($status_value, 'devcode')) {
+        // Fall back to direct status string
+        $status_string = get_string($status_value, 'devcode');
+    } else {
+        // If neither exists, use a generic status string
+        $status_string = get_string('submissionstatus_error', 'devcode');
+    }
+} else {
+    $status_string = get_string('submissionstatus_error', 'devcode');
+}
+echo html_writer::tag('span', $status_string, array('class' => $status_class));
 echo html_writer::end_tag('div');
 
 // Hiển thị thông báo đang xử lý nếu submission đang ở trạng thái processing

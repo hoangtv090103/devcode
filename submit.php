@@ -375,7 +375,7 @@ if ($mform->is_cancelled()) {
     $submission->devcodeid = $devcode->id;
     $submission->userid = $USER->id;
     $submission->code = $code_content;
-    $submission->language = $devcode->language;
+    $submission->language_id = $devcode->language;
     $submission->timemodified = $now;
     $submission->timecreated = $now;
     $submission->status = 'processing';
@@ -412,7 +412,50 @@ if ($mform->is_cancelled()) {
             $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC');
             
             // Perform grading using Judge0 direct integration
-            devcode_grade_with_judge0($submission, $testcases, $submission->language, $devcode);
+            $graded_submission = devcode_grade_with_judge0($submission, $devcode, $context);
+            
+            // Update submission with grading results if successful
+            if ($graded_submission) {
+                // Copy relevant fields from graded submission
+                $submission->status = $graded_submission->status ?? 'error';
+                $submission->score = $graded_submission->grade ?? 0;
+                $submission->feedback = $graded_submission->message ?? '';
+                $submission->passed_tests = $graded_submission->tests_passed ?? 0;
+                $submission->total_tests = $graded_submission->tests_total ?? 0;
+                $submission->timemodified = time();
+                
+                // Save test results if available
+                if (!empty($graded_submission->test_results)) {
+                    $test_results = json_decode($graded_submission->test_results);
+                    
+                    // Store individual test results in the database
+                    if (is_array($test_results)) {
+                        foreach ($test_results as $result) {
+                            $test_result = new stdClass();
+                            $test_result->submissionid = $submission->id;
+                            $test_result->testcaseid = $result->test_id;
+                            $test_result->passed = ($result->status === DEVCODE_STATUS_ACCEPTED) ? 1 : 0;
+                            $test_result->output = $result->actual;
+                            $test_result->error_message = $result->message;
+                            $test_result->execution_time = $result->time ?? 0;
+                            $test_result->memory_used = $result->memory ?? 0;
+                            $test_result->timecreated = time();
+                            
+                            // Insert the test result record
+                            $DB->insert_record('devcode_submission_results', $test_result);
+                        }
+                    }
+                }
+                
+                // Update database
+                $DB->update_record('devcode_submissions', $submission);
+                
+                // Update grades in gradebook
+                if ($submission->status === DEVCODE_STATUS_ACCEPTED || 
+                    $submission->status === DEVCODE_STATUS_PARTIALLY_ACCEPTED) {
+                    devcode_update_grades($devcode, $submission->userid);
+                }
+            }
         }
     } catch (Exception $e) {
         debugging('Error during submission processing: ' . $e->getMessage(), DEBUG_DEVELOPER);
