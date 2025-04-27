@@ -131,6 +131,14 @@ class mod_devcode_mod_form extends moodleform_mod
             array('size' => 5)
         );
 
+        // Test case description
+        $repeatarray[] = $mform->createElement(
+            'textarea',
+            'testcase_description',
+            get_string('testcasedescription', 'devcode'),
+            array('rows' => 3, 'cols' => 50)
+        );
+
         // Visible to student
         $repeatarray[] = $mform->createElement(
             'advcheckbox',
@@ -171,11 +179,12 @@ class mod_devcode_mod_form extends moodleform_mod
         $repeateloptions['testcase_visible']['type'] = PARAM_INT;
         $repeateloptions['testcase_id']['type'] = PARAM_INT;
         $repeateloptions['testcase_delete']['type'] = PARAM_BOOL;
+        $repeateloptions['testcase_description']['type'] = PARAM_RAW;
 
         // Set default values
-        $repeateloptions['testcase_points']['default'] = 10.0;
-        $repeateloptions['testcase_time_limit']['default'] = 3000;
-        $repeateloptions['testcase_visible']['default'] = 0;
+        // $repeateloptions['testcase_points']['default'] = 10.0; // Remove default
+        // $repeateloptions['testcase_time_limit']['default'] = 3000; // Remove default
+        // $repeateloptions['testcase_visible']['default'] = 0; // Remove default
         $repeateloptions['testcase_delete']['default'] = 0;
 
         $this->repeat_elements(
@@ -274,6 +283,7 @@ class mod_devcode_mod_form extends moodleform_mod
                 $default_values['testcase_points'][$testcasecount] = $testcase->points;
                 $default_values['testcase_time_limit'][$testcasecount] = $testcase->time_limit;
                 $default_values['testcase_visible'][$testcasecount] = $testcase->visible_to_student;
+                $default_values['testcase_description'][$testcasecount] = $testcase->description;
                 $default_values['testcase_id'][$testcasecount] = $testcase->id; // Store the ID for tracking
                 $default_values['testcase_delete'][$testcasecount] = 0; // Not marked for deletion
                 $testcasecount++;

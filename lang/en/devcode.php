@@ -1,11 +1,11 @@
 <?php
 defined('MOODLE_INTERNAL') || die();
 
-$string['modulename'] = 'Code';
-$string['modulenameplural'] = 'Code';
-$string['modulename_help'] = 'The Code module allows instructors to create programming assignments that are automatically graded.';
-$string['pluginname'] = 'Code';
-$string['pluginadministration'] = 'Code administration';
+$string['modulename'] = 'Devcode';
+$string['modulenameplural'] = 'Devcode';
+$string['modulename_help'] = 'The Devcode module allows instructors to create programming assignments that are automatically graded.';
+$string['pluginname'] = 'Devcode';
+$string['pluginadministration'] = 'Devcode administration';
 
 // Form strings
 $string['assignmentname'] = 'Name';
@@ -88,11 +88,12 @@ $string['statusoverdue'] = 'Overdue';
 
 // New test case strings
 $string['testcaseinput'] = 'Input';
-$string['testcaseoutput'] = 'Expected output';
+$string['testcaseoutput'] = 'Test Case Output';
 $string['testcasepoints'] = 'Points';
-$string['testcasetimelimit'] = 'Time limit (ms)';
-$string['visibletostudent'] = 'Visible to student';
-$string['addmoretestcases'] = 'Add more test cases';
+$string['testcasetimelimit'] = 'Time Limit (ms)';
+$string['testcasedescription'] = 'Test Case Description';
+$string['visibletostudent'] = 'Visible to Student';
+$string['addmoretestcases'] = 'Add More Test Cases';
 $string['testcasepointserror'] = 'Points must be a positive number';
 $string['testcasetimelimiterror'] = 'Time limit must be a positive number';
 $string['viewtestcases'] = 'View test cases';
