@@ -421,37 +421,151 @@ function devcode_process_batch($submissions, $devcode) {
 }
 
 /**
- * Process multiple submissions in chunks to avoid timeout
+ * Xử lý các bài nộp theo từng đợt (chunk) để tránh overload server
  *
- * @param array $submissions Array of all submissions
- * @param object $devcode DevCode instance
- * @param int $chunk_size Size of each processing chunk
- * @return array Processing results
+ * @param array $submissions Danh sách bài nộp
+ * @param object $devcode Thông tin module devcode
+ * @param int $chunk_size Kích thước mỗi đợt (chunk)
+ * @return array Kết quả xử lý
  */
 function devcode_process_in_chunks($submissions, $devcode, $chunk_size = 10) {
     $total = count($submissions);
-    $processed = 0;
-    $errors = 0;
-    $chunks = array_chunk($submissions, $chunk_size);
-    
-    foreach ($chunks as $chunk) {
-        $result = devcode_process_batch($chunk, $devcode);
-        
-        if ($result['status'] === 'success') {
-            $processed += $result['processed'];
-            $errors += $result['errors'] ?? 0;
+    $chunks = ceil($total / $chunk_size);
+    $results = array();
+    $errors = array();
+
+    for ($i = 0; $i < $chunks; $i++) {
+        $start = $i * $chunk_size;
+        $chunk = array_slice($submissions, $start, $chunk_size);
+        debugging('Processing chunk ' . ($i + 1) . ' of ' . $chunks . ' (' . count($chunk) . ' submissions)', DEBUG_DEVELOPER);
+
+        // Tạo chuỗi submissions để xử lý batch
+        $submissions_batch = [];
+        foreach ($chunk as $submission) {
+            $submission_obj = new stdClass();
+            $submission_obj->id = $submission->id;
+            $submission_obj->code = $submission->code;
+            $submission_obj->language_id = $submission->language_id;
+
+            // Lấy các test cases cho submission này
+            $testcases = [];
+            $db_testcases = $DB->get_records('devcode_testcases', ['devcodeid' => $devcode->id], 'id ASC');
+            foreach ($db_testcases as $tc) {
+                $testcases[] = $tc;
+            }
+            $submission_obj->testcases = $testcases;
+
+            $submissions_batch[] = $submission_obj;
+        }
+
+        // Sử dụng batch API nếu có nhiều submission và testcases
+        if (count($submissions_batch) > 1 && function_exists('devcode_process_submissions_with_batch')) {
+            debugging('Using batch API for ' . count($submissions_batch) . ' submissions', DEBUG_DEVELOPER);
+            
+            $batch_options = [
+                'wait' => true,
+                'timeout' => 120,
+                'max_attempts' => 15,
+                'initial_wait' => 2
+            ];
+            
+            $batch_result = devcode_process_submissions_with_batch($submissions_batch, $batch_options);
+            
+            if (isset($batch_result['success']) && $batch_result['success']) {
+                debugging('Batch processing successful', DEBUG_DEVELOPER);
+                
+                // Xử lý và lưu kết quả
+                if (!empty($batch_result['results'])) {
+                    foreach ($batch_result['results'] as $sub_id => $test_results) {
+                        // Tìm submission trong chunk
+                        foreach ($chunk as $submission) {
+                            if ($submission->id == $sub_id) {
+                                // Cập nhật submission
+                                $submission->status = 'graded';
+                                $submission->timemodified = time();
+                                
+                                // Tính điểm dựa trên kết quả test
+                                $total_points = 0;
+                                $scored_points = 0;
+                                $tests_passed = 0;
+                                $tests_total = count($test_results);
+                                
+                                foreach ($test_results as $tc_id => $tc_result) {
+                                    $testcase = $DB->get_record('devcode_testcases', ['id' => $tc_id]);
+                                    if ($testcase) {
+                                        $total_points += $testcase->points;
+                                        
+                                        if ($tc_result['status_id'] == 3) { // Accepted
+                                            $scored_points += $testcase->points;
+                                            $tests_passed++;
+                                        }
+                                    }
+                                }
+                                
+                                // Tính điểm và cập nhật vào cơ sở dữ liệu
+                                $grade = ($total_points > 0) ? ($scored_points / $total_points * $devcode->grade) : 0;
+                                $submission->grade = $grade;
+                                $submission->tests_passed = $tests_passed;
+                                $submission->tests_total = $tests_total;
+                                
+                                // Cập nhật trạng thái submission
+                                if ($tests_passed == $tests_total) {
+                                    $submission->status = DEVCODE_STATUS_ACCEPTED;
+                                    $submission->message = get_string('allteststpassed', 'devcode');
+                                } else if ($tests_passed > 0) {
+                                    $submission->status = DEVCODE_STATUS_PARTIALLY_ACCEPTED;
+                                    $submission->message = get_string('someteststpassed', 'devcode', 
+                                        ['passed' => $tests_passed, 'total' => $tests_total]);
+                                } else {
+                                    $submission->status = DEVCODE_STATUS_WRONG_ANSWER;
+                                    $submission->message = get_string('noteststpassed', 'devcode');
+                                }
+                                
+                                // Lưu kết quả chi tiết từng test case
+                                $submission->result_data = json_encode($test_results);
+                                
+                                // Lưu vào cơ sở dữ liệu
+                                $DB->update_record('devcode_submissions', $submission);
+                                
+                                // Cập nhật điểm số trên gradebook
+                                devcode_update_grades($devcode, $submission->userid);
+                                
+                                $results[] = $submission->id;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Xử lý lỗi batch
+                debugging('Batch processing error: ' . ($batch_result['message'] ?? 'Unknown error'), DEBUG_DEVELOPER);
+                
+                // Sử dụng phương pháp xử lý từng submission nếu batch không thành công
+                $chunk_result = devcode_process_batch($chunk, $devcode);
+                $results = array_merge($results, $chunk_result['processed']);
+                if (!empty($chunk_result['errors'])) {
+                    $errors = array_merge($errors, $chunk_result['errors']);
+                }
+            }
         } else {
-            $errors += count($chunk);
+            // Sử dụng phương pháp xử lý cũ nếu không đủ điều kiện sử dụng batch
+            $chunk_result = devcode_process_batch($chunk, $devcode);
+            $results = array_merge($results, $chunk_result['processed']);
+            if (!empty($chunk_result['errors'])) {
+                $errors = array_merge($errors, $chunk_result['errors']);
+            }
+        }
+
+        // Delay between chunks to avoid overloading
+        if ($i < $chunks - 1) {
+            sleep(2);
         }
     }
-    
-    return [
-        'status' => 'success',
-        'message' => "Processed $processed of $total submissions with $errors errors",
-        'processed' => $processed,
-        'total' => $total,
+
+    return array(
+        'processed' => $results,
         'errors' => $errors
-    ];
+    );
 }
 
 /**
@@ -566,6 +680,187 @@ function devcode_import_processed_results($json_data) {
         'message' => "Imported $imported results with $errors errors",
         'imported' => $imported,
         'errors' => $errors
+    ];
+}
+
+/**
+ * Xử lý nhiều submissions cùng lúc sử dụng Judge0 Batch API
+ * 
+ * @param array $submissions Mảng chứa thông tin các submissions cần xử lý
+ * @param array $options Tuỳ chọn cấu hình
+ * @return array Kết quả xử lý
+ */
+function devcode_process_submissions_with_batch($submissions, $options = []) {
+    global $CFG;
+    
+    if (empty($submissions)) {
+        return [
+            'error' => true,
+            'message' => 'No submissions to process'
+        ];
+    }
+    
+    // Kiểm tra xem có thư viện Judge0 API không
+    if (!file_exists($CFG->dirroot . '/mod/devcode/judge0_api.php')) {
+        return [
+            'error' => true,
+            'message' => 'Judge0 API library not found'
+        ];
+    }
+    
+    require_once($CFG->dirroot . '/mod/devcode/judge0_api.php');
+    
+    // Lấy cấu hình Judge0
+    $judge0_config = devcode_get_judge0_config();
+    
+    // Chuẩn bị dữ liệu cho batch submissions
+    $batch_submissions = [];
+    $submission_mapping = []; // Để lưu trữ mapping giữa batch index và submission id
+    
+    foreach ($submissions as $index => $submission) {
+        if (empty($submission->code) || empty($submission->language_id)) {
+            continue;
+        }
+        
+        // Lấy các test cases
+        $testcases = isset($submission->testcases) ? $submission->testcases : [];
+        
+        // Nếu không có test cases, bỏ qua submission này
+        if (empty($testcases)) {
+            continue;
+        }
+        
+        foreach ($testcases as $tc_index => $testcase) {
+            $batch_submissions[] = [
+                'source_code' => $submission->code,
+                'language_id' => $submission->language_id,
+                'stdin' => $testcase->input ?? '',
+                'expected_output' => $testcase->output ?? '',
+                'cpu_time_limit' => isset($testcase->time_limit) ? ($testcase->time_limit / 1000) : 2,
+                'memory_limit' => isset($testcase->memory_limit) ? $testcase->memory_limit : 128000
+            ];
+            
+            // Lưu mapping để sau này có thể xác định submission và testcase tương ứng
+            $submission_mapping[] = [
+                'submission_id' => $submission->id,
+                'submission_index' => $index,
+                'testcase_id' => $testcase->id,
+                'testcase_index' => $tc_index
+            ];
+        }
+    }
+    
+    if (empty($batch_submissions)) {
+        return [
+            'error' => true,
+            'message' => 'No valid submissions for batch processing'
+        ];
+    }
+    
+    // Gửi batch submissions lên Judge0
+    $batch_response = devcode_send_batch_to_judge0($batch_submissions, $judge0_config);
+    
+    if (isset($batch_response['error']) && $batch_response['error']) {
+        return $batch_response;
+    }
+    
+    // Lấy tokens
+    $tokens = [];
+    if (!empty($batch_response['submissions'])) {
+        foreach ($batch_response['submissions'] as $submission) {
+            if (!empty($submission['token'])) {
+                $tokens[] = $submission['token'];
+            }
+        }
+    }
+    
+    if (empty($tokens)) {
+        return [
+            'error' => true,
+            'message' => 'No tokens received from batch submissions'
+        ];
+    }
+    
+    // Đợi và lấy kết quả
+    $wait = isset($options['wait']) ? $options['wait'] : false;
+    
+    if (!$wait) {
+        // Nếu không đợi, trả về tokens để xử lý sau
+        return [
+            'success' => true,
+            'tokens' => $tokens,
+            'mapping' => $submission_mapping
+        ];
+    }
+    
+    // Đợi và lấy kết quả
+    $max_attempts = isset($options['max_attempts']) ? $options['max_attempts'] : 10;
+    $attempt = 0;
+    $wait_time = isset($options['initial_wait']) ? $options['initial_wait'] : 1;
+    $timeout = isset($options['timeout']) ? $options['timeout'] : 60;
+    $start_time = time();
+    
+    while ($attempt < $max_attempts && (time() - $start_time) < $timeout) {
+        sleep($wait_time);
+        
+        $results = devcode_get_batch_results($tokens, $judge0_config);
+        
+        if (isset($results['error']) && $results['error']) {
+            $attempt++;
+            $wait_time *= 2; // Exponential backoff
+            continue;
+        }
+        
+        // Kiểm tra xem tất cả các submissions đã hoàn thành chưa
+        $all_complete = true;
+        if (!empty($results['submissions'])) {
+            foreach ($results['submissions'] as $result) {
+                // Nếu status id = 1 hoặc 2, thì vẫn đang xử lý
+                if (isset($result['status']['id']) && in_array($result['status']['id'], [1, 2])) {
+                    $all_complete = false;
+                    break;
+                }
+            }
+        }
+        
+        if ($all_complete) {
+            // Xử lý kết quả và trả về
+            $processed_results = [];
+            
+            // Tạo mảng kết quả cho mỗi submission
+            foreach ($submissions as $index => $submission) {
+                $submission_results = [];
+                
+                // Tìm tất cả các kết quả testcase cho submission này
+                foreach ($submission_mapping as $map_index => $mapping) {
+                    if ($mapping['submission_index'] === $index && isset($results['submissions'][$map_index])) {
+                        $result = $results['submissions'][$map_index];
+                        $testcase_id = $mapping['testcase_id'];
+                        
+                        $submission_results[$testcase_id] = devcode_map_judge0_status($result);
+                    }
+                }
+                
+                $processed_results[$submission->id] = $submission_results;
+            }
+            
+            return [
+                'success' => true,
+                'results' => $processed_results,
+                'raw_results' => $results['submissions'],
+                'mapping' => $submission_mapping
+            ];
+        }
+        
+        $attempt++;
+        $wait_time *= 2; // Tăng thời gian chờ theo luỹ thừa
+    }
+    
+    return [
+        'error' => true,
+        'message' => 'Timeout while waiting for batch results',
+        'tokens' => $tokens,
+        'mapping' => $submission_mapping
     ];
 } 
  

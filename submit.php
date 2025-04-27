@@ -375,273 +375,194 @@ if ($mform->is_cancelled()) {
     $submission->devcodeid = $devcode->id;
     $submission->userid = $USER->id;
     $submission->code = $code_content;
-    $submission->language_id = $devcode->language;
-    $submission->timemodified = $now;
+    $submission->language_id = $fromform->language_id; // Ensure language ID is saved
     $submission->timecreated = $now;
-    $submission->status = 'processing';
-    $submission->feedback = get_string('processing', 'devcode', '');
+    $submission->status = DEVCODE_STATUS_SUBMITTED; // Set initial status to submitted
+    $submission->feedback = get_string('submissionqueued', 'devcode'); // Initial feedback
+    $submission->submission_method = $submission_method; // Save submission method
 
-    // Thêm thông tin phương thức nộp bài
-    $submission->submission_method = $submission_method;
-
-    // Lưu bài nộp vào cơ sở dữ liệu
-    $submission->id = $DB->insert_record('devcode_submissions', $submission);
-
-    // Process the submission (plagiarism check + grading)
-    $submission->status = 'processing';
-    $submission->feedback = get_string('processing', 'devcode', '');
-    $DB->update_record('devcode_submissions', $submission);
-
-    // Extend time limit for processing
-    $original_time_limit = ini_get('max_execution_time');
-    set_time_limit(300); // 5 minutes
-    
-    try {
-        // Check for plagiarism first
-        $plagiarism_detected = false;
-        if ($devcode->enable_plagiarism) {
-            debugging('Starting plagiarism detection for submission: ' . $submission->id, DEBUG_DEVELOPER);
-            $plagiarism_detected = devcode_check_plagiarism($submission->id);
-        }
-        
-        // If no plagiarism detected, proceed with grading
-        if (!$plagiarism_detected) {
-            debugging('No plagiarism detected, proceeding with grading for submission: ' . $submission->id, DEBUG_DEVELOPER);
-            
-            // Get test cases for the assignment
-            $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC');
-            
-            // Perform grading using Judge0 direct integration
-            $graded_submission = devcode_grade_with_judge0($submission, $devcode, $context);
-            
-            // Update submission with grading results if successful
-            if ($graded_submission) {
-                // Copy relevant fields from graded submission
-                $submission->status = $graded_submission->status ?? 'error';
-                $submission->score = $graded_submission->grade ?? 0;
-                $submission->feedback = $graded_submission->message ?? '';
-                $submission->passed_tests = $graded_submission->tests_passed ?? 0;
-                $submission->total_tests = $graded_submission->tests_total ?? 0;
-                $submission->timemodified = time();
-                
-                // Save test results if available
-                if (!empty($graded_submission->test_results)) {
-                    $test_results = json_decode($graded_submission->test_results);
-                    
-                    // Store individual test results in the database
-                    if (is_array($test_results)) {
-                        foreach ($test_results as $result) {
-                            $test_result = new stdClass();
-                            $test_result->submissionid = $submission->id;
-                            $test_result->testcaseid = $result->test_id;
-                            $test_result->passed = ($result->status === DEVCODE_STATUS_ACCEPTED) ? 1 : 0;
-                            $test_result->output = $result->actual;
-                            $test_result->error_message = $result->message;
-                            $test_result->execution_time = $result->time ?? 0;
-                            $test_result->memory_used = $result->memory ?? 0;
-                            $test_result->timecreated = time();
-                            
-                            // Insert the test result record
-                            $DB->insert_record('devcode_submission_results', $test_result);
-                        }
-                    }
-                }
-                
-                // Update database
-                $DB->update_record('devcode_submissions', $submission);
-                
-                // Update grades in gradebook
-                if ($submission->status === DEVCODE_STATUS_ACCEPTED || 
-                    $submission->status === DEVCODE_STATUS_PARTIALLY_ACCEPTED) {
-                    devcode_update_grades($devcode, $submission->userid);
-                }
-            }
-        }
-    } catch (Exception $e) {
-        debugging('Error during submission processing: ' . $e->getMessage(), DEBUG_DEVELOPER);
-        // Update submission to show error
-        $submission->status = 'error';
-        $submission->feedback = get_string('error') . ': ' . $e->getMessage();
-        $DB->update_record('devcode_submissions', $submission);
-    } finally {
-        // Reset to original time limit
-        set_time_limit($original_time_limit);
-    }
-
-    // Always show success message since processing is happening synchronously
-    $message = get_string('submissionsuccess', 'devcode');
-    $notification = new \core\output\notification($message, \core\output\notification::NOTIFY_SUCCESS);
-    
-    // Make sure to include header before notification if not already done
-    echo $OUTPUT->header();
-    echo $OUTPUT->render($notification);
-    
-    // Create the result URL as a string
-    $result_url = $CFG->wwwroot . '/mod/devcode/view_result.php?id=' . $cm->id . '&sid=' . $submission->id;
-
-    // Add a JavaScript redirect instead of using redirect() function
-    echo '<script>window.setTimeout(function() { window.location.href = "' . $result_url . '"; }, 2000);</script>';
-    
-    // Close the page properly
-    echo $OUTPUT->footer();
-    exit;
-}
-
-// Display the form
-echo $OUTPUT->header();
-
-// Hiển thị tên bài tập và đề bài
-echo html_writer::tag('h1', format_string($devcode->name), array('class' => 'devcode-assignment-title'));
-echo html_writer::tag('hr', '', array('class' => 'devcode-assignment-divider'));
-// Hiển thị ngôn ngữ lập trình được sử dụng
-$language_name = devcode_get_language_by_id($devcode->language);
-
-
-// Replace simple paragraph with styled highlighted container
-echo html_writer::start_tag('div', array('class' => 'devcode-language-highlight'));
-echo html_writer::tag('span', $language_name, array('class' => 'devcode-language-value'));
-echo html_writer::end_tag('div');
-
-// Hiển thị mô tả bài tập
-if (!empty($devcode->intro)) {
-    echo html_writer::tag('h3', get_string('description', 'devcode'), array('class' => 'devcode-assignment-description-title'));
-    echo html_writer::div(format_text($devcode->intro, $devcode->introformat), 'devcode-assignment-description');
-}
-
-// Hiển thị test cases
-$visible_testcases = $DB->get_records(
-    'devcode_testcases',
-    array('devcodeid' => $devcode->id, 'visible_to_student' => 1),
-    'id ASC'
-);
-
-if (!empty($visible_testcases)) {
-    echo html_writer::tag('h3', get_string('testcases', 'devcode'), array('class' => 'devcode-testcases-title'));
-
-    echo html_writer::start_tag('div', array('class' => 'devcode-testcases-container'));
-    echo html_writer::start_tag('table', array('class' => 'generaltable devcode-testcases-table'));
-
-    // Header row
-    echo html_writer::start_tag('thead');
-    echo html_writer::start_tag('tr');
-    echo html_writer::tag('th', get_string('input', 'devcode'));
-    echo html_writer::tag('th', get_string('expectedoutput', 'devcode'));
-    echo html_writer::tag('th', get_string('points', 'devcode'));
-    echo html_writer::end_tag('tr');
-    echo html_writer::end_tag('thead');
-
-    // Test case rows
-    echo html_writer::start_tag('tbody');
-    foreach ($visible_testcases as $testcase) {
-        echo html_writer::start_tag('tr');
-        echo html_writer::tag('td', s($testcase->input), array('class' => 'testcase-input'));
-        echo html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
-        echo html_writer::tag('td', $testcase->points, array('class' => 'testcase-points'));
-        echo html_writer::end_tag('tr');
-    }
-    echo html_writer::end_tag('tbody');
-
-    echo html_writer::end_tag('table');
-    echo html_writer::end_tag('div');
-}
-
-// Hiển thị deadline nếu có
-if (!empty($devcode->duedate)) {
-    $duedate = userdate($devcode->duedate);
-    echo html_writer::tag(
-        'div',
-        html_writer::tag('strong', get_string('duedate', 'devcode') . ': ') . $duedate,
-        array('class' => 'devcode-duedate')
-    );
-}
-
-// Hiển thị trạng thái nộp bài
-if ($submission) {
-    // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
-    if ($submission->status === 'plagiarism_detected') {
-        $status_text = 'Potential plagiarism detected';
+    // Thêm mới hoặc cập nhật bài nộp
+    if (empty($submission->id)) {
+        debugging('Inserting new submission', DEBUG_DEVELOPER);
+        $submission->id = $DB->insert_record('devcode_submissions', $submission);
     } else {
-        $status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
+        debugging('Updating existing submission', DEBUG_DEVELOPER);
+        $DB->update_record('devcode_submissions', $submission);
     }
-    echo html_writer::tag(
-        'div',
-        html_writer::tag('strong', get_string('submissionstatus', 'devcode') . ': ') .
-            html_writer::tag('span', $status_text, array('class' => 'status-text')),
-        array('class' => 'submission-status status-' . $submission->status)
-    );
+
+    // Queue the adhoc task for processing this submission
+    debugging('Queueing adhoc task for submission: ' . $submission->id, DEBUG_DEVELOPER);
+    $task = new \mod_devcode\task\process_single_submission_task();
+    $task->set_custom_data(['submissionid' => $submission->id]);
+    \core\task\manager::queue_adhoc_task($task);
+
+    // Prepare success message
+    $message = get_string('submissionsuccess_queued', 'devcode');
+    $notification = new \core\output\notification($message, \core\output\notification::NOTIFY_SUCCESS);
+
+    // Redirect to view page with success notification
+    redirect(new moodle_url('/mod/devcode/view.php', array('id' => $cm->id)), $message, \core\output\notification::NOTIFY_SUCCESS);
+
 } else {
-    echo html_writer::tag(
-        'div',
-        html_writer::tag('strong', get_string('submissionstatus', 'devcode') . ': ') .
-            html_writer::tag('span', get_string('submissionstatus_notsubmitted', 'devcode'), array('class' => 'status-text')),
-        array('class' => 'submission-status status-notsubmitted')
+    // Nếu form chưa được submit hoặc validate thất bại
+    debugging('Form not submitted or validation failed.', DEBUG_DEVELOPER);
+
+    // Display the form
+    echo $OUTPUT->header();
+
+    // Hiển thị tên bài tập và đề bài
+    echo html_writer::tag('h1', format_string($devcode->name), array('class' => 'devcode-assignment-title'));
+    echo html_writer::tag('hr', '', array('class' => 'devcode-assignment-divider'));
+    // Hiển thị ngôn ngữ lập trình được sử dụng
+    $language_name = devcode_get_language_by_id($devcode->language);
+
+
+    // Replace simple paragraph with styled highlighted container
+    echo html_writer::start_tag('div', array('class' => 'devcode-language-highlight'));
+    echo html_writer::tag('span', $language_name, array('class' => 'devcode-language-value'));
+    echo html_writer::end_tag('div');
+
+    // Hiển thị mô tả bài tập
+    if (!empty($devcode->intro)) {
+        echo html_writer::tag('h3', get_string('description', 'devcode'), array('class' => 'devcode-assignment-description-title'));
+        echo html_writer::div(format_text($devcode->intro, $devcode->introformat), 'devcode-assignment-description');
+    }
+
+    // Hiển thị test cases
+    $visible_testcases = $DB->get_records(
+        'devcode_testcases',
+        array('devcodeid' => $devcode->id, 'visible_to_student' => 1),
+        'id ASC'
     );
-}
 
-// Nếu đã có bài nộp trước đó, hiển thị kết quả ở phía trên form
-if ($submission && !empty($submission->score)) {
-    echo html_writer::start_tag('div', array('class' => 'grading-results'));
+    if (!empty($visible_testcases)) {
+        echo html_writer::tag('h3', get_string('testcases', 'devcode'), array('class' => 'devcode-testcases-title'));
 
-    // Tiêu đề kết quả
-    echo html_writer::start_tag('div', array('class' => 'results-header'));
-    echo html_writer::tag('h3', get_string('gradingresults', 'devcode'), array('class' => 'results-title'));
-    echo html_writer::tag('div', $submission->score . '/10', array('class' => 'results-score'));
-    echo html_writer::end_tag('div');
+        echo html_writer::start_tag('div', array('class' => 'devcode-testcases-container'));
+        echo html_writer::start_tag('table', array('class' => 'generaltable devcode-testcases-table'));
 
-    // Chi tiết kết quả
-    echo html_writer::start_tag('div', array('class' => 'results-details'));
+        // Header row
+        echo html_writer::start_tag('thead');
+        echo html_writer::start_tag('tr');
+        echo html_writer::tag('th', get_string('input', 'devcode'));
+        echo html_writer::tag('th', get_string('expectedoutput', 'devcode'));
+        echo html_writer::tag('th', get_string('points', 'devcode'));
+        echo html_writer::end_tag('tr');
+        echo html_writer::end_tag('thead');
 
-    // Thông tin test cases
-    $test_results = $DB->get_records('devcode_submission_results', array('submissionid' => $submission->id));
-    $total_tests = count($test_results);
-    $passed_tests = 0;
-    foreach ($test_results as $test) {
-        if ($test->passed) {
-            $passed_tests++;
+        // Test case rows
+        echo html_writer::start_tag('tbody');
+        foreach ($visible_testcases as $testcase) {
+            echo html_writer::start_tag('tr');
+            echo html_writer::tag('td', s($testcase->input), array('class' => 'testcase-input'));
+            echo html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
+            echo html_writer::tag('td', $testcase->points, array('class' => 'testcase-points'));
+            echo html_writer::end_tag('tr');
         }
-    }
+        echo html_writer::end_tag('tbody');
 
-    // Item 1: Test cases passed
-    echo html_writer::start_tag('div', array('class' => 'result-item'));
-    echo html_writer::tag('div', get_string('testcasespassed', 'devcode'), array('class' => 'result-label'));
-    echo html_writer::tag('div', $passed_tests . '/' . $total_tests, array('class' => 'result-value'));
-    echo html_writer::end_tag('div');
-
-    // Item 2: Execution time
-    $execution_time = 0;
-    foreach ($test_results as $test) {
-        $execution_time = max($execution_time, $test->execution_time);
-    }
-
-    echo html_writer::start_tag('div', array('class' => 'result-item'));
-    echo html_writer::tag('div', get_string('executiontime', 'devcode'), array('class' => 'result-label'));
-    echo html_writer::tag('div', number_format($execution_time / 1000, 3) . ' s', array('class' => 'result-value'));
-    echo html_writer::end_tag('div');
-
-    echo html_writer::end_tag('div'); // results-details
-
-    // Phản hồi
-    if (!empty($submission->feedback)) {
-        echo html_writer::start_tag('div', array('class' => 'feedback-container'));
-        echo html_writer::tag('h4', get_string('feedback', 'devcode'));
-        echo html_writer::tag('p', $submission->feedback);
+        echo html_writer::end_tag('table');
         echo html_writer::end_tag('div');
     }
 
-    // Nút xem kết quả chi tiết và nộp lại bài
-    echo html_writer::start_tag('div', array('class' => 'result-actions'));
-    echo html_writer::link(
-        new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submission->id)),
-        get_string('viewdetailedresults', 'devcode'),
-        array('class' => 'btn btn-secondary')
-    );
-    echo html_writer::end_tag('div');
+    // Hiển thị deadline nếu có
+    if (!empty($devcode->duedate)) {
+        $duedate = userdate($devcode->duedate);
+        echo html_writer::tag(
+            'div',
+            html_writer::tag('strong', get_string('duedate', 'devcode') . ': ') . $duedate,
+            array('class' => 'devcode-duedate')
+        );
+    }
 
-    echo html_writer::end_tag('div'); // grading-results
+    // Hiển thị trạng thái nộp bài
+    if ($submission) {
+        // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
+        if ($submission->status === 'plagiarism_detected') {
+            $status_text = 'Potential plagiarism detected';
+        } else {
+            $status_text = get_string('submissionstatus_' . $submission->status, 'devcode', userdate($submission->timemodified));
+        }
+        echo html_writer::tag(
+            'div',
+            html_writer::tag('strong', get_string('submissionstatus', 'devcode') . ': ') .
+                html_writer::tag('span', $status_text, array('class' => 'status-text')),
+            array('class' => 'submission-status status-' . $submission->status)
+        );
+    } else {
+        echo html_writer::tag(
+            'div',
+            html_writer::tag('strong', get_string('submissionstatus', 'devcode') . ': ') .
+                html_writer::tag('span', get_string('submissionstatus_notsubmitted', 'devcode'), array('class' => 'status-text')),
+            array('class' => 'submission-status status-notsubmitted')
+        );
+    }
+
+    // Nếu đã có bài nộp trước đó, hiển thị kết quả ở phía trên form
+    if ($submission && !empty($submission->score)) {
+        echo html_writer::start_tag('div', array('class' => 'grading-results'));
+
+        // Tiêu đề kết quả
+        echo html_writer::start_tag('div', array('class' => 'results-header'));
+        echo html_writer::tag('h3', get_string('gradingresults', 'devcode'), array('class' => 'results-title'));
+        echo html_writer::tag('div', $submission->score . '/10', array('class' => 'results-score'));
+        echo html_writer::end_tag('div');
+
+        // Chi tiết kết quả
+        echo html_writer::start_tag('div', array('class' => 'results-details'));
+
+        // Thông tin test cases
+        $test_results = $DB->get_records('devcode_submission_results', array('submissionid' => $submission->id));
+        $total_tests = count($test_results);
+        $passed_tests = 0;
+        foreach ($test_results as $test) {
+            if ($test->passed) {
+                $passed_tests++;
+            }
+        }
+
+        // Item 1: Test cases passed
+        echo html_writer::start_tag('div', array('class' => 'result-item'));
+        echo html_writer::tag('div', get_string('testcasespassed', 'devcode'), array('class' => 'result-label'));
+        echo html_writer::tag('div', $passed_tests . '/' . $total_tests, array('class' => 'result-value'));
+        echo html_writer::end_tag('div');
+
+        // Item 2: Execution time
+        $execution_time = 0;
+        foreach ($test_results as $test) {
+            $execution_time = max($execution_time, $test->execution_time);
+        }
+
+        echo html_writer::start_tag('div', array('class' => 'result-item'));
+        echo html_writer::tag('div', get_string('executiontime', 'devcode'), array('class' => 'result-label'));
+        echo html_writer::tag('div', number_format($execution_time / 1000, 3) . ' s', array('class' => 'result-value'));
+        echo html_writer::end_tag('div');
+
+        echo html_writer::end_tag('div'); // results-details
+
+        // Phản hồi
+        if (!empty($submission->feedback)) {
+            echo html_writer::start_tag('div', array('class' => 'feedback-container'));
+            echo html_writer::tag('h4', get_string('feedback', 'devcode'));
+            echo html_writer::tag('p', $submission->feedback);
+            echo html_writer::end_tag('div');
+        }
+
+        // Nút xem kết quả chi tiết và nộp lại bài
+        echo html_writer::start_tag('div', array('class' => 'result-actions'));
+        echo html_writer::link(
+            new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submission->id)),
+            get_string('viewdetailedresults', 'devcode'),
+            array('class' => 'btn btn-secondary')
+        );
+        echo html_writer::end_tag('div');
+
+        echo html_writer::end_tag('div'); // grading-results
+    }
+
+    // Display the submission form
+    $mform->display();
+
+    // Footer is properly called once at the end
+    echo $OUTPUT->footer();
 }
-
-// Display the submission form
-$mform->display();
-
-// Footer is properly called once at the end
-echo $OUTPUT->footer();

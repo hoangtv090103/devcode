@@ -17,9 +17,10 @@ define('DEVCODE_JUDGE0_ERROR_TIMEOUT', 4);
 define('DEVCODE_JUDGE0_ERROR_INVALID_TOKEN', 5);
 define('DEVCODE_JUDGE0_ERROR_MISSING_PARAM', 6);
 
-// Thêm các hằng số thiếu
-define('DEVCODE_STATUS_TIMEOUT', 5);
-define('DEVCODE_STATUS_PARTIALLY_ACCEPTED', 6);
+// Các hằng số này đã được định nghĩa trong constants.php
+// define('DEVCODE_STATUS_TIMEOUT', 5);
+// define('DEVCODE_STATUS_PARTIALLY_ACCEPTED', 6);
+
 // Note: DEVCODE_MAX_POLL_TIME is defined in constants.php and used from there
 
 function devcode_get_judge0_config()
@@ -889,4 +890,364 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
     $submission->test_results = json_encode($test_results);
 
     return $submission;
+}
+
+/**
+ * Gửi nhiều bài nộp dưới dạng batch submission lên Judge0 API
+ * 
+ * @param array $batch_submissions Mảng chứa các thông tin bài nộp (mỗi phần tử cần có language_id và source_code)
+ * @param array $config Cấu hình Judge0 API (nếu null, sẽ lấy từ cài đặt)
+ * @return array Mảng chứa kết quả từ API, bao gồm tokens hoặc error message
+ */
+function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
+    if (empty($config)) {
+        $config = devcode_get_judge0_config();
+    }
+    
+    if (empty($batch_submissions) || !is_array($batch_submissions)) {
+        return [
+            'error' => true,
+            'message' => 'Dữ liệu batch submissions không hợp lệ'
+        ];
+    }
+    
+    // Chuẩn bị dữ liệu cho API
+    $submissions = [];
+    foreach ($batch_submissions as $submission) {
+        if (empty($submission['source_code']) || empty($submission['language_id'])) {
+            continue;
+        }
+        
+        $sub = [
+            'language_id' => intval($submission['language_id']),
+            'source_code' => $submission['source_code']
+        ];
+        
+        // Thêm các trường tùy chọn nếu có
+        if (!empty($submission['stdin'])) {
+            $sub['stdin'] = $submission['stdin'];
+        }
+        if (!empty($submission['expected_output'])) {
+            $sub['expected_output'] = $submission['expected_output'];
+        }
+        if (!empty($submission['cpu_time_limit'])) {
+            $sub['cpu_time_limit'] = $submission['cpu_time_limit'];
+        }
+        if (!empty($submission['memory_limit'])) {
+            $sub['memory_limit'] = $submission['memory_limit'];
+        }
+        
+        $submissions[] = $sub;
+    }
+    
+    if (empty($submissions)) {
+        return [
+            'error' => true,
+            'message' => 'Không có dữ liệu hợp lệ để gửi trong batch'
+        ];
+    }
+    
+    $api_payload = ['submissions' => $submissions];
+    
+    // Tạo URL và headers dựa trên cấu hình
+    $is_rapidapi = (strpos($config['judge0_api_url'], 'rapidapi.com') !== false);
+    $is_local = (strpos($config['judge0_api_url'], 'localhost') !== false || strpos($config['judge0_api_url'], '127.0.0.1') !== false);
+    
+    // Chuẩn bị headers
+    $headers = [];
+    if ($is_rapidapi) {
+        $headers = [
+            "Content-Type: application/json",
+            "x-rapidapi-host: judge0-ce.p.rapidapi.com", 
+            "x-rapidapi-key: " . $config['judge0_api_key']
+        ];
+    } else if ($is_local) {
+        $headers = ['Content-Type: application/json', 'Accept: application/json'];
+    } else {
+        $headers = [
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'X-API-Key: ' . $config['judge0_api_key']
+        ];
+    }
+    
+    // Tạo URL
+    $base_url = rtrim($config['judge0_api_url'], '/');
+    $batch_endpoint = "/submissions/batch";
+    $url = $base_url . $batch_endpoint . "?base64_encoded=false";
+    
+    // Thực hiện curl request
+    $json_payload = json_encode($api_payload);
+    
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => "",
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => $config['judge0_timeout'],
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => "POST",
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $json_payload,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false
+    ]);
+    
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_errno = curl_errno($ch);
+    $curl_error = curl_error($ch);
+    
+    curl_close($ch);
+    
+    if ($curl_errno) {
+        return [
+            'error' => true,
+            'message' => 'Lỗi kết nối: ' . $curl_error,
+            'response' => $response
+        ];
+    }
+    
+    if ($http_code >= 400) {
+        return [
+            'error' => true,
+            'message' => 'Lỗi API (HTTP ' . $http_code . ')',
+            'response' => $response
+        ];
+    }
+    
+    $data = json_decode($response, true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        return [
+            'error' => true,
+            'message' => 'Lỗi khi parse JSON response: ' . json_last_error_msg(),
+            'response' => $response
+        ];
+    }
+    
+    return $data;
+}
+
+/**
+ * Lấy kết quả từ batch submissions dựa trên danh sách tokens
+ *
+ * @param array $tokens Mảng chứa các tokens từ batch submissions
+ * @param array $config Cấu hình Judge0 API
+ * @return array Mảng chứa kết quả của các submissions
+ */
+function devcode_get_batch_results($tokens, $config = null) {
+    if (empty($config)) {
+        $config = devcode_get_judge0_config();
+    }
+    
+    if (empty($tokens) || !is_array($tokens)) {
+        return [
+            'error' => true,
+            'message' => 'Tokens không hợp lệ'
+        ];
+    }
+    
+    // Nối các tokens bằng dấu phẩy
+    $tokens_param = implode(',', $tokens);
+    
+    // Tạo URL và headers dựa trên cấu hình
+    $is_rapidapi = (strpos($config['judge0_api_url'], 'rapidapi.com') !== false);
+    $is_local = (strpos($config['judge0_api_url'], 'localhost') !== false || strpos($config['judge0_api_url'], '127.0.0.1') !== false);
+    
+    // Chuẩn bị headers
+    $headers = [];
+    if ($is_rapidapi) {
+        $headers = [
+            "x-rapidapi-host: judge0-ce.p.rapidapi.com", 
+            "x-rapidapi-key: " . $config['judge0_api_key']
+        ];
+    } else if ($is_local) {
+        $headers = ['Accept: application/json'];
+    } else {
+        $headers = [
+            'Accept: application/json',
+            'X-API-Key: ' . $config['judge0_api_key']
+        ];
+    }
+    
+    // Tạo URL
+    $base_url = rtrim($config['judge0_api_url'], '/');
+    $batch_endpoint = "/submissions/batch";
+    $url = $base_url . $batch_endpoint . "?tokens=" . urlencode($tokens_param) . "&base64_encoded=false&fields=*";
+    
+    // Thực hiện curl request
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => "",
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => $config['judge0_timeout'],
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => "GET",
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false
+    ]);
+    
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_errno = curl_errno($ch);
+    $curl_error = curl_error($ch);
+    
+    curl_close($ch);
+    
+    if ($curl_errno) {
+        return [
+            'error' => true,
+            'message' => 'Lỗi kết nối: ' . $curl_error,
+            'response' => $response
+        ];
+    }
+    
+    if ($http_code >= 400) {
+        return [
+            'error' => true,
+            'message' => 'Lỗi API (HTTP ' . $http_code . ')',
+            'response' => $response
+        ];
+    }
+    
+    $data = json_decode($response, true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        return [
+            'error' => true,
+            'message' => 'Lỗi khi parse JSON response: ' . json_last_error_msg(),
+            'response' => $response
+        ];
+    }
+    
+    return $data;
+}
+
+/**
+ * Thực hiện chạy code với nhiều test cases sử dụng batch submissions
+ *
+ * @param string $source_code Mã nguồn
+ * @param int $language_id ID ngôn ngữ
+ * @param array $test_cases Mảng các test cases
+ * @param array $config Cấu hình Judge0 API
+ * @return array Kết quả của tất cả các test cases
+ */
+function devcode_run_code_with_batch($source_code, $language_id, $test_cases, $config = null) {
+    if (empty($config)) {
+        $config = devcode_get_judge0_config();
+    }
+    
+    if (empty($source_code) || empty($language_id) || empty($test_cases)) {
+        return [
+            'error' => true,
+            'message' => 'Thiếu thông tin cần thiết để chạy code'
+        ];
+    }
+    
+    // Chuẩn bị batch submissions
+    $batch_submissions = [];
+    foreach ($test_cases as $test_case) {
+        $sub = [
+            'language_id' => $language_id,
+            'source_code' => $source_code,
+            'stdin' => $test_case['input'] ?? '',
+            'expected_output' => $test_case['output'] ?? '',
+            'cpu_time_limit' => $test_case['time_limit'] ?? 2,
+            'memory_limit' => $test_case['memory_limit'] ?? 128000
+        ];
+        
+        $batch_submissions[] = $sub;
+    }
+    
+    // Gửi batch submissions
+    $batch_response = devcode_send_batch_to_judge0($batch_submissions, $config);
+    
+    if (isset($batch_response['error']) && $batch_response['error']) {
+        return $batch_response;
+    }
+    
+    // Lấy tokens
+    $tokens = [];
+    if (!empty($batch_response['submissions'])) {
+        foreach ($batch_response['submissions'] as $submission) {
+            if (!empty($submission['token'])) {
+                $tokens[] = $submission['token'];
+            }
+        }
+    }
+    
+    if (empty($tokens)) {
+        return [
+            'error' => true,
+            'message' => 'Không nhận được tokens từ batch submissions'
+        ];
+    }
+    
+    // Đợi và lấy kết quả
+    $max_attempts = 10;
+    $attempt = 0;
+    $wait_time = 1; // Bắt đầu với 1 giây
+    
+    while ($attempt < $max_attempts) {
+        sleep($wait_time);
+        
+        $results = devcode_get_batch_results($tokens, $config);
+        
+        if (isset($results['error']) && $results['error']) {
+            $attempt++;
+            $wait_time *= 2; // Exponential backoff
+            continue;
+        }
+        
+        // Kiểm tra xem tất cả các submissions đã hoàn thành chưa
+        $all_complete = true;
+        if (!empty($results['submissions'])) {
+            foreach ($results['submissions'] as $result) {
+                // Nếu status id = 1 hoặc 2, thì vẫn đang xử lý
+                if (isset($result['status']['id']) && in_array($result['status']['id'], [1, 2])) {
+                    $all_complete = false;
+                    break;
+                }
+            }
+        }
+        
+        if ($all_complete) {
+            // Xử lý kết quả và trả về
+            $processed_results = [];
+            if (!empty($results['submissions'])) {
+                foreach ($results['submissions'] as $index => $result) {
+                    $test_case = $test_cases[$index] ?? [];
+                    $processed_results[] = [
+                        'test_case' => $test_case,
+                        'result' => devcode_map_judge0_status($result),
+                        'execution_time' => $result['time'] ?? null,
+                        'memory' => $result['memory'] ?? null,
+                        'stdout' => $result['stdout'] ?? null,
+                        'stderr' => $result['stderr'] ?? null,
+                        'compile_output' => $result['compile_output'] ?? null,
+                        'exit_code' => $result['exit_code'] ?? null,
+                        'status' => $result['status'] ?? null,
+                        'passed' => devcode_compare_outputs($test_case['output'] ?? '', $result['stdout'] ?? '')
+                    ];
+                }
+            }
+            
+            return [
+                'success' => true,
+                'results' => $processed_results
+            ];
+        }
+        
+        $attempt++;
+        $wait_time *= 2; // Tăng thời gian chờ theo luỹ thừa
+    }
+    
+    return [
+        'error' => true,
+        'message' => 'Hết thời gian chờ kết quả từ batch submissions'
+    ];
 }
