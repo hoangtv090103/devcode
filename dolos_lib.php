@@ -117,9 +117,16 @@ function dolos_submit_zip($zip_content, $name, $language = '') {
     
     // Prepare multipart form data
     $post = ['dataset[name]' => $name];
-    if ($language) {
+    
+    // Never use 'generic' as language to avoid dependency issues
+    if ($language && $language !== 'generic') {
         $post['dataset[programming_language]'] = $language;
+    } else {
+        // Default to C if generic or empty
+        debugging("Avoiding 'generic' language, using 'c' instead", DEBUG_DEVELOPER);
+        $post['dataset[programming_language]'] = 'c';
     }
+    
     $post['dataset[zipfile]'] = curl_file_create(
         $temp_zip, 
         'application/zip', 
@@ -226,6 +233,14 @@ function dolos_poll_report($report_id) {
             }
             
             if ($result['status'] === 'failed') {
+                // Check if the error is related to tree-sitter-generic dependency
+                if (!empty($result['stderr']) && strpos($result['stderr'], 'tree-sitter-generic') !== false) {
+                    debugging('Dolos failed due to tree-sitter-generic dependency. Retry with a supported language.', DEBUG_DEVELOPER);
+                    curl_close($curl);
+                    // Signal a special error for handling tree-sitter-generic issue
+                    return ['status' => 'failed', 'error' => 'tree_sitter_generic_missing', 'original' => $result];
+                }
+                
                 debugging('Dolos report failed: ' . json_encode($result), DEBUG_DEVELOPER);
                 curl_close($curl);
                 return false;

@@ -28,6 +28,36 @@ $CFG->devcode = [
         'max_wait' => 60,
         'poll_interval' => 3,
         'wait_for_result' => false
+    ],
+    
+    // Dolos plagiarism detection configuration
+    'dolos' => [
+        'api_url' => 'https://dolos.ugent.be/api',
+        'api_key' => '',
+        'timeout' => 120,
+        'max_poll_attempts' => 30,
+        'poll_interval' => 5,
+        'threshold' => 0.8
+    ],
+    
+    // Plagiarism detection settings
+    'plagiarism' => [
+        'enabled' => true,
+        'language_mapping' => [
+            'c' => 'c',
+            'cpp' => 'cpp',
+            'java' => 'java',
+            'python' => 'python',
+            'javascript' => 'javascript',
+            'php' => 'php',
+            'ruby' => 'ruby',
+            'go' => 'go',
+            'csharp' => 'csharp',
+            'kotlin' => 'kotlin',
+            'rust' => 'rust',
+            'swift' => 'swift',
+            'typescript' => 'typescript'
+        ]
     ]
 ];
 

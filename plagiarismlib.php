@@ -143,8 +143,41 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
     
     // Wait for report to be processed
     $report = dolos_poll_report($report_id);
-    if (!$report || $report['status'] !== 'finished') {
+    if (!$report) {
         debugging('Report processing failed: ' . json_encode($report), DEBUG_DEVELOPER);
+        return false;
+    }
+
+    // Handle tree-sitter-generic dependency issue
+    if ($report['status'] === 'failed' && isset($report['error']) && $report['error'] === 'tree_sitter_generic_missing') {
+        debugging("Detected tree-sitter-generic dependency issue. Retrying with 'c' language.", DEBUG_DEVELOPER);
+        
+        // Create a new submission with 'c' language
+        $result = dolos_submit_zip($zip, "assignment_{$devcode->id}_retry", 'c');
+        if (!$result) {
+            debugging('Failed retry submission to Dolos API', DEBUG_DEVELOPER);
+            return false;
+        }
+        
+        $report_id = $result['id'] ?? '';
+        if (!$report_id && isset($result['html_url']) && preg_match('/\/reports\/([^\/]+)/', $result['html_url'], $m)) {
+            $report_id = $m[1];
+        }
+        if (!$report_id) {
+            debugging('No report ID from retry submission', DEBUG_DEVELOPER);
+            return false;
+        }
+        
+        // Poll for report again
+        $report = dolos_poll_report($report_id);
+        if (!$report || $report['status'] !== 'finished') {
+            debugging('Retry report processing failed: ' . json_encode($report), DEBUG_DEVELOPER);
+            return false;
+        }
+    }
+
+    if ($report['status'] !== 'finished') {
+        debugging('Report status not finished: ' . $report['status'], DEBUG_DEVELOPER);
         return false;
     }
     
@@ -244,27 +277,37 @@ function devcode_normalize_language_for_dolos($language) {
     // Check if plagiarism configuration exists
     if (!isset($CFG->devcode) || !is_array($CFG->devcode)) {
         debugging('DevCode configuration not found in $CFG->devcode', DEBUG_DEVELOPER);
-        return 'generic';
+        // Default to 'c' instead of 'generic' to avoid tree-sitter-generic dependency
+        return 'c';
     }
     
     if (!isset($CFG->devcode['plagiarism']) || !is_array($CFG->devcode['plagiarism'])) {
         debugging('Plagiarism configuration not found in $CFG->devcode[\'plagiarism\']', DEBUG_DEVELOPER);
-        return 'generic';
+        // Default to 'c' instead of 'generic' to avoid tree-sitter-generic dependency
+        return 'c';
     }
     
     if (!isset($CFG->devcode['plagiarism']['language_mapping']) || !is_array($CFG->devcode['plagiarism']['language_mapping'])) {
         debugging('Language mapping not found in plagiarism configuration', DEBUG_DEVELOPER);
-        return 'generic';
+        // Default to 'c' instead of 'generic' to avoid tree-sitter-generic dependency
+        return 'c';
     }
     
     // Check if there's a direct mapping for this language
     foreach ($CFG->devcode['plagiarism']['language_mapping'] as $pattern => $mapped) {
         if (stripos($language, $pattern) !== false) {
+            // Make sure the mapped language isn't 'generic'
+            if ($mapped === 'generic') {
+                debugging("Language '$language' mapped to 'generic' which is unsupported, using 'c' instead", DEBUG_DEVELOPER);
+                return 'c';
+            }
             return $mapped;
         }
     }
     
-    return 'generic';
+    debugging("No mapping found for language '$language', defaulting to 'c'", DEBUG_DEVELOPER);
+    // Default to 'c' instead of 'generic' to avoid tree-sitter-generic dependency
+    return 'c';
 }
 
 function devcode_get_file_extension($language) {

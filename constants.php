@@ -25,7 +25,6 @@
 defined('MOODLE_INTERNAL') || die();
 
 // Trạng thái bài nộp
-define('DEVCODE_STATUS_SUBMITTED', 'submitted');     // Đã nộp, chờ xử lý
 define('DEVCODE_STATUS_PENDING', 'pending');       // Đang chờ chấm điểm
 define('DEVCODE_STATUS_PROCESSING', 'processing'); // Đang xử lý
 define('DEVCODE_STATUS_ACCEPTED', 'accepted');     // Đã chấp nhận (pass hết test)
