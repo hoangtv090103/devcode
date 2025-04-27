@@ -329,4 +329,22 @@ $string['dolos_timeout_desc'] = 'Maximum time (in seconds) to wait for Dolos API
 
 $string['submissionstatus_6'] = 'Partially Accepted';
 
+// Run code feature
+$string['runcode'] = 'Run Code';
+$string['customtestinput'] = 'Custom Input';
+$string['enterinput'] = 'Enter your test input here...';
+$string['runningcode'] = 'Running your code...';
+$string['runresult'] = 'Run Result';
+$string['output'] = 'Output';
+$string['stderr'] = 'Error Output';
+$string['compileoutput'] = 'Compiler Output';
+$string['nooutput'] = 'No output';
+$string['noerror'] = 'No errors';
+$string['nocompileoutput'] = 'No compiler output';
+$string['connectionerror'] = 'Could not connect to the server. Please try again.';
+$string['actualoutput'] = 'Actual Output';
+$string['summary'] = 'Summary';
+$string['debug'] = 'Debug';
+$string['testcasespassed'] = 'Test Cases Passed';
+
 ?>
