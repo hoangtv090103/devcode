@@ -1,11 +1,11 @@
 <?php
 defined('MOODLE_INTERNAL') || die();
 
-$string['modulename'] = 'Code';
-$string['modulenameplural'] = 'Code';
-$string['modulename_help'] = 'The Code module allows instructors to create programming assignments that are automatically graded.';
-$string['pluginname'] = 'Code';
-$string['pluginadministration'] = 'Code administration';
+$string['modulename'] = 'Devcode';
+$string['modulenameplural'] = 'Devcode';
+$string['modulename_help'] = 'The Devcode module allows instructors to create programming assignments that are automatically graded.';
+$string['pluginname'] = 'Devcode';
+$string['pluginadministration'] = 'Devcode administration';
 
 // Form strings
 $string['assignmentname'] = 'Name';
@@ -88,11 +88,12 @@ $string['statusoverdue'] = 'Overdue';
 
 // New test case strings
 $string['testcaseinput'] = 'Input';
-$string['testcaseoutput'] = 'Expected output';
+$string['testcaseoutput'] = 'Test Case Output';
 $string['testcasepoints'] = 'Points';
-$string['testcasetimelimit'] = 'Time limit (ms)';
-$string['visibletostudent'] = 'Visible to student';
-$string['addmoretestcases'] = 'Add more test cases';
+$string['testcasetimelimit'] = 'Time Limit (ms)';
+$string['testcasedescription'] = 'Test Case Description';
+$string['visibletostudent'] = 'Visible to Student';
+$string['addmoretestcases'] = 'Add More Test Cases';
 $string['testcasepointserror'] = 'Points must be a positive number';
 $string['testcasetimelimiterror'] = 'Time limit must be a positive number';
 $string['viewtestcases'] = 'View test cases';
@@ -144,6 +145,31 @@ $string['runtime_error'] = 'Runtime error';
 $string['time_limit_exceeded'] = 'Time limit exceeded';
 $string['memory_limit_exceeded'] = 'Memory limit exceeded';
 $string['wrong_answer'] = 'Wrong answer';
+
+// Status strings for specific DevCode status values
+$string['accepted'] = 'Accepted';
+$string['partially_accepted'] = 'Partially Accepted';
+$string['partially_correct'] = 'Partially Correct';
+$string['time_limit'] = 'Time Limit Exceeded';
+$string['memory_limit'] = 'Memory Limit Exceeded';
+$string['compile_error'] = 'Compilation Error';
+$string['pending'] = 'Pending';
+
+// Status strings for submission status_id
+$string['submissionstatus_accepted'] = 'Accepted';
+$string['submissionstatus_wrong_answer'] = 'Wrong Answer';
+$string['submissionstatus_time_limit'] = 'Time Limit Exceeded';
+$string['submissionstatus_memory_limit'] = 'Memory Limit Exceeded';
+$string['submissionstatus_compile_error'] = 'Compilation Error';
+$string['submissionstatus_runtime_error'] = 'Runtime Error';
+$string['submissionstatus_pending'] = 'Pending';
+$string['submissionstatus_processing'] = 'Processing';
+$string['submissionstatus_partially_accepted'] = 'Partially Accepted';
+
+// Judge0 feedback strings
+$string['allteststpassed'] = 'All tests passed successfully!';
+$string['someteststpassed'] = '{$a->passed} out of {$a->total} tests passed';
+$string['noteststpassed'] = 'No tests have been passed';
 
 // New submission interface strings
 $string['submission'] = 'Submission';
@@ -275,5 +301,50 @@ $string['markedfordelete'] = 'Marked for deletion';
 $string['deleteconfirm'] = 'Are you sure you want to delete this test case?';
 
 $string['checking_plagiarism'] = 'Checking plagiarism...';
+
+// Error messages
+$string['missingidparam'] = 'Missing required parameter: {$a}';
+
+$string['systemerror'] = 'A system error occurred during processing. Please try again later or contact your instructor if the problem persists.';
+$string['errordetailsstaff'] = 'The following technical error details are only visible to staff:';
+
+// Admin settings for Judge0 and Dolos
+$string['judge0_settings'] = 'Judge0 API Settings';
+$string['judge0_settings_desc'] = 'Configure settings for the Judge0 code execution service';
+$string['judge0_api_url'] = 'Judge0 API URL';
+$string['judge0_api_url_desc'] = 'The URL of the Judge0 API service';
+$string['judge0_api_key'] = 'Judge0 API Key';
+$string['judge0_api_key_desc'] = 'API key for authenticating with Judge0 service';
+$string['judge0_timeout'] = 'Judge0 Timeout';
+$string['judge0_timeout_desc'] = 'Maximum time (in seconds) to wait for Judge0 API responses';
+
+$string['dolos_settings'] = 'Dolos Plagiarism Detection Settings';
+$string['dolos_settings_desc'] = 'Configure settings for the Dolos plagiarism detection service';
+$string['dolos_api_url'] = 'Dolos API URL';
+$string['dolos_api_url_desc'] = 'The URL of the Dolos API service';
+$string['dolos_api_key'] = 'Dolos API Key';
+$string['dolos_api_key_desc'] = 'API key for authenticating with Dolos service (if required)';
+$string['dolos_timeout'] = 'Dolos Timeout';
+$string['dolos_timeout_desc'] = 'Maximum time (in seconds) to wait for Dolos API responses';
+
+$string['submissionstatus_6'] = 'Partially Accepted';
+
+// Run code feature
+$string['runcode'] = 'Run Code';
+$string['customtestinput'] = 'Custom Input';
+$string['enterinput'] = 'Enter your test input here...';
+$string['runningcode'] = 'Running your code...';
+$string['runresult'] = 'Run Result';
+$string['output'] = 'Output';
+$string['stderr'] = 'Error Output';
+$string['compileoutput'] = 'Compiler Output';
+$string['nooutput'] = 'No output';
+$string['noerror'] = 'No errors';
+$string['nocompileoutput'] = 'No compiler output';
+$string['connectionerror'] = 'Could not connect to the server. Please try again.';
+$string['actualoutput'] = 'Actual Output';
+$string['summary'] = 'Summary';
+$string['debug'] = 'Debug';
+$string['testcasespassed'] = 'Test Cases Passed';
 
 ?>

@@ -22,31 +22,26 @@ function devcode_get_supported_languages()
 {
     global $CFG;
 
-    // Đảm bảo config đã được load
+    // Make sure config is loaded
     if (!isset($CFG->devcode)) {
         require_once(dirname(__FILE__) . '/config.php');
     }
 
-    $api_base = $CFG->devcode['api_base_url'];
-    $languages_endpoint = $CFG->devcode['api_endpoints']['languages'];
-    $url = $api_base . $languages_endpoint;
+    // Include judge0_api.php if not already included
+    require_once(dirname(__FILE__) . '/judge0_api.php');
+    
+    // Get Judge0 config
+    $judge0_config = devcode_get_judge0_config();
+    
+    // Get languages from Judge0 API
+    $result = devcode_get_languages($judge0_config);
 
     $languages = array();
 
-    // Thử sử dụng file_get_contents với stream context để xử lý lỗi
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'timeout' => $CFG->devcode['api_timeout'],
-            'ignore_errors' => true
-        ]
-    ]);
-
-    $response = @file_get_contents($url, false, $context);
-
-    // Kiểm tra nếu API không hoạt động, trả về danh sách mặc định
-    if ($response === false) {
-        debugging('Không thể kết nối đến API ngôn ngữ. Sử dụng danh sách mặc định.', DEBUG_DEVELOPER);
+    // Check if there was an error
+    if (isset($result['error'])) {
+        debugging('Error getting languages from Judge0 API: ' . $result['message'], DEBUG_DEVELOPER);
+        // Return default languages if error
         return array(
             '71' => 'Python (3.8.1)',
             '62' => 'Java (JDK 13.0.1)',
@@ -55,20 +50,10 @@ function devcode_get_supported_languages()
         );
     }
 
-    $data = json_decode($response, true);
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
-        debugging('Định dạng JSON không hợp lệ từ API. Sử dụng danh sách mặc định.', DEBUG_DEVELOPER);
-        return array(
-            '71' => 'Python (3.8.1)',
-            '62' => 'Java (JDK 13.0.1)',
-            '54' => 'C++ (GCC 9.2.0)',
-            '63' => 'JavaScript (Node.js 12.14.0)'
-        );
-    }
-
-    foreach ($data as $lang) {
+    // Process languages from Judge0 API
+    foreach ($result as $lang) {
         if (isset($lang['id']) && isset($lang['name'])) {
-            // Chuyển ID thành chuỗi để tránh lỗi khi lưu vào database
+            // Convert ID to string to avoid database issues
             $languages[strval($lang['id'])] = $lang['name'];
         }
     }
@@ -145,17 +130,31 @@ function devcode_api_request($url, $method = 'GET', $data = null)
 
 /**
  * Get language name by ID
+ * 
+ * @param string $language_id The language ID to lookup
+ * @return string The language name, or the ID if not found
  */
 function devcode_get_language_by_id($language_id)
 {
     global $CFG;
 
-    // Đảm bảo config đã được load
+    // Static cache to avoid multiple API calls for the same language ID
+    static $language_cache = array();
+    
+    // Return from cache if available
+    if (isset($language_cache[$language_id])) {
+        return $language_cache[$language_id];
+    }
+
+    // Make sure config is loaded
     if (!isset($CFG->devcode)) {
         require_once(dirname(__FILE__) . '/config.php');
     }
 
-    // Danh sách ngôn ngữ mặc định để fallback
+    // Include judge0_api.php if not already included
+    require_once(dirname(__FILE__) . '/judge0_api.php');
+    
+    // Default languages for fallback
     $default_languages = array(
         '71' => 'Python (3.8.1)',
         '62' => 'Java (JDK 13.0.1)',
@@ -163,51 +162,110 @@ function devcode_get_language_by_id($language_id)
         '63' => 'JavaScript (Node.js 12.14.0)'
     );
 
-    // Kiểm tra nếu language_id tồn tại trong danh sách mặc định
+    // Check if language_id exists in default languages
     if (isset($default_languages[$language_id])) {
-        return $default_languages[$language_id];
+        $language_cache[$language_id] = $default_languages[$language_id];
+        return $language_cache[$language_id];
     }
 
-    // Nếu không tìm thấy trong danh sách mặc định, thử lấy từ API
+    // Try to get from Judge0 API
     try {
-        $api_base = $CFG->devcode['api_base_url'];
-        $languages_endpoint = $CFG->devcode['api_endpoints']['languages'];
-        $url = $api_base . $languages_endpoint;
+        // Get Judge0 config
+        $config = devcode_get_judge0_config();
+        
+        // API endpoint URL
+        $url = rtrim($config['judge0_api_url'], '/') . '/languages/' . $language_id;
 
-        // Thử sử dụng file_get_contents với stream context để xử lý lỗi
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => $CFG->devcode['api_timeout'],
-                'ignore_errors' => true
-            ]
-        ]);
-
-        $response = @file_get_contents($url, false, $context);
-
-        // Kiểm tra nếu API không hoạt động, trả về từ danh sách mặc định
-        if ($response === false) {
-            debugging('Không thể kết nối đến API ngôn ngữ. Sử dụng danh sách mặc định.', DEBUG_DEVELOPER);
-            return $language_id; // Trả về ID nếu không có tên
+        // Prepare request headers
+        $headers = ['Content-Type: application/json'];
+        
+        // Add API key if available
+        if (!empty($config['judge0_api_key'])) {
+            $headers[] = 'X-RapidAPI-Key: ' . $config['judge0_api_key'];
+            $headers[] = 'X-RapidAPI-Host: judge0-ce.p.rapidapi.com';
+        }
+        
+        // Initialize curl
+        $ch = curl_init($url);
+        
+        // Set curl options
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $config['judge0_timeout']);
+        
+        // Execute curl request
+        $response = curl_exec($ch);
+        
+        // Check for curl errors
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            debugging('Cannot connect to language API: ' . $error, DEBUG_DEVELOPER);
+            $language_cache[$language_id] = $language_id; // Cache the ID
+            return $language_id; // Return ID if API call fails
+        }
+        
+        // Get HTTP status code
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        // Check HTTP status code
+        if ($http_code < 200 || $http_code >= 300) {
+            debugging('HTTP error when fetching language: ' . $http_code, DEBUG_DEVELOPER);
+            $language_cache[$language_id] = $language_id; // Cache the ID
+            return $language_id; // Return ID on HTTP error
         }
 
-        $data = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
-            debugging('Định dạng JSON không hợp lệ từ API. Sử dụng ID.', DEBUG_DEVELOPER);
-            return $language_id;
+        // Decode JSON response
+        $lang_data = json_decode($response, true);
+        
+        // Check for JSON decode errors
+        if ($lang_data === null) {
+            debugging('Invalid JSON response from API: ' . json_last_error_msg(), DEBUG_DEVELOPER);
+            $language_cache[$language_id] = $language_id; // Cache the ID
+            return $language_id; // Return ID on JSON error
+        }
+        
+        // Return language name if found
+        if (isset($lang_data['name'])) {
+            $language_cache[$language_id] = $lang_data['name']; // Cache the name
+            return $lang_data['name'];
         }
 
-        // Tìm ngôn ngữ trong danh sách API
-        foreach ($data as $lang) {
-            if (isset($lang['id']) && $lang['id'] == $language_id && isset($lang['name'])) {
-                return $lang['name'];
-            }
-        }
-
-        // Nếu không tìm thấy, trả về ID
+        // If everything failed, return the ID
+        $language_cache[$language_id] = $language_id; // Cache the ID
         return $language_id;
     } catch (Exception $e) {
-        debugging('Lỗi khi lấy thông tin ngôn ngữ: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        debugging('Error when getting language info: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        $language_cache[$language_id] = $language_id; // Cache the ID
         return $language_id;
     }
+}
+
+/**
+ * Pre-cache all available languages to avoid multiple API calls
+ * Call this function once at the beginning of a page to optimize multiple language lookups
+ */
+function devcode_optimize_language_lookup() 
+{
+    static $initialized = false;
+    
+    // Only initialize once per request
+    if ($initialized) {
+        return;
+    }
+    
+    // Get all languages
+    $languages = devcode_get_supported_languages();
+    
+    // Cache each language
+    if (is_array($languages)) {
+        foreach ($languages as $id => $name) {
+            // Use static variable inside devcode_get_language_by_id
+            // by calling it once for each language
+            devcode_get_language_by_id($id);
+        }
+    }
+    
+    $initialized = true;
 } 

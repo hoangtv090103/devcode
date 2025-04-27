@@ -15,7 +15,6 @@ require_once(dirname(__FILE__) . '/lib.php');
 require_once($CFG->libdir . '/accesslib.php');
 
 use \core\output\html_writer;
-use \moodle_url;
 
 // Course Module ID
 $id = required_param('id', PARAM_INT);
@@ -28,7 +27,7 @@ $devcode = $DB->get_record('devcode', array('id' => $cm->instance), '*', MUST_EX
 
 // Kiểm tra đăng nhập và quyền truy cập
 require_login($course, true, $cm);
-$context = \context_module::instance($cm->id);
+$context = \core\context\module::instance($cm->id);
 
 // Thiết lập trang
 $PAGE->set_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sid));
@@ -51,7 +50,7 @@ try {
     // Handle the case when the submission doesn't exist
     echo $OUTPUT->header();
     echo $OUTPUT->notification(get_string('notfound', 'devcode') . ': ' . get_string('submission', 'devcode'), 'error');
-    echo $OUTPUT->continue_button(new moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
+    echo $OUTPUT->continue_button(new \moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
     echo $OUTPUT->footer();
     exit;
 }
@@ -61,11 +60,12 @@ $canviewsubmission = has_capability('mod/devcode:manage', $context) ||
     ($submission->userid == $USER->id && has_capability('mod/devcode:submit', $context));
 
 if (!$canviewsubmission) {
-    throw new moodle_exception('nopermissions', 'error', '', get_string('viewsubmission', 'devcode'));
+    throw new \moodle_exception('nopermissions', 'error', '', get_string('viewsubmission', 'devcode'));
 }
 
 // Lấy thông tin ngôn ngữ
-$language_name = devcode_get_language_by_id($submission->language);
+$language_id = isset($submission->language_id) ? $submission->language_id : $submission->language;
+$language_name = devcode_get_language_by_id($language_id);
 
 // Lấy kết quả test cases nếu có
 $test_results = $DB->get_records('devcode_submission_results', array('submissionid' => $submission->id));
@@ -150,7 +150,43 @@ switch ($submission->status) {
 }
 
 echo html_writer::start_tag('div', array('class' => 'submission-status'));
-echo html_writer::tag('span', get_string($submission->status, 'devcode'), array('class' => $status_class));
+// Check if status is not empty before using it as a string identifier
+if (!empty($submission->status)) {
+    // Convert numeric status codes to their string equivalents if needed
+    $status_value = $submission->status;
+    if (is_numeric($status_value)) {
+        // Map numeric status codes to string equivalents
+        $status_map = [
+            1 => 'accepted',
+            2 => 'wrong_answer',
+            3 => 'time_limit',
+            4 => 'memory_limit',
+            5 => 'compile_error',
+            6 => 'partially_accepted',
+            7 => 'runtime_error',
+            8 => 'pending',
+            9 => 'processing'
+        ];
+        if (isset($status_map[$status_value])) {
+            $status_value = $status_map[$status_value];
+        }
+    }
+    
+    // Try to get a specialized submission status string first
+    $status_string_id = 'submissionstatus_' . $status_value;
+    if (get_string_manager()->string_exists($status_string_id, 'devcode')) {
+        $status_string = get_string($status_string_id, 'devcode');
+    } else if (get_string_manager()->string_exists($status_value, 'devcode')) {
+        // Fall back to direct status string
+        $status_string = get_string($status_value, 'devcode');
+    } else {
+        // If neither exists, use a generic status string
+        $status_string = get_string('submissionstatus_error', 'devcode');
+    }
+} else {
+    $status_string = get_string('submissionstatus_error', 'devcode');
+}
+echo html_writer::tag('span', $status_string, array('class' => $status_class));
 echo html_writer::end_tag('div');
 
 // Hiển thị thông báo đang xử lý nếu submission đang ở trạng thái processing
@@ -172,7 +208,7 @@ if ($submission->status === 'processing') {
         'submissionid' => $submission->id,
         'sesskey' => sesskey()
     );
-    $ajax_url = new moodle_url('/mod/devcode/ajax/check_submission_status.php', $ajax_params);
+    $ajax_url = new \moodle_url('/mod/devcode/ajax/check_submission_status.php', $ajax_params);
 
     $PAGE->requires->js_init_code('
         // Function to check submission status
@@ -204,12 +240,11 @@ if ($submission->status === 'processing') {
 }
 
 // Hiển thị cảnh báo đạo văn
-if ($submission->status === 'plagiarism') {
+if ($submission->status === 'plagiarism' || $submission->status === 'plagiarism_detected') {
     // Close the info grid before the alert to make it take full width
     echo html_writer::end_tag('div'); // end devcode-info-grid
     
     echo html_writer::start_tag('div', array('class' => 'alert alert-danger full-width-alert'));
-    echo html_writer::tag('i', '', array('class' => 'fa fa-exclamation-triangle mr-2'));
     
     // Extract similarity score from the plagiarism record if available
     // Check both submission1_id and submission2_id fields since the submission could be in either one
@@ -221,25 +256,48 @@ if ($submission->status === 'plagiarism') {
     );
     
     $similarity_score = $plagiarism_record ? $plagiarism_record->similarity_score : 0;
+    $similarity_percent = round($similarity_score * 100, 1);
     
-    // Generate the plagiarism message with the actual similarity score
-    echo html_writer::tag('div', get_string('plagiarism_detected', 'devcode', format_float($similarity_score, 1)));
+    // Hiển thị cảnh báo theo mẫu trong hình
+    echo html_writer::start_tag('div', array('class' => 'plagiarism-warning'));
     
-    // Add additional feedback if available (like URLs or additional details)
+    // Biểu tượng tam giác cảnh báo
+    echo html_writer::start_tag('span', array('class' => 'fa fa-exclamation-triangle text-danger mr-2'));
+    echo html_writer::end_tag('span');
+    
+    // Thông báo chính
+    echo html_writer::tag('strong', 'Phát hiện có khả năng đạo văn (độ tương đồng: ' . $similarity_percent . '%)');
+    
+    // Xem chi tiết với URL
+    echo html_writer::start_tag('div', array('class' => 'mt-3'));
+    echo html_writer::tag('div', 'Xem chi tiết:');
+    
+    $url_container_style = 'background-color: #f8f8f8; padding: 8px; border-radius: 5px; margin: 10px 0;';
+    echo html_writer::start_tag('div', array('style' => $url_container_style));
+    
     if (!empty($submission->plagiarism_url)) {
-        echo html_writer::start_tag('div', array('class' => 'plagiarism-details mt-2'));
-        echo get_string('plagiarism_details', 'devcode', '');
-        echo html_writer::tag('div', html_writer::tag('code', s($submission->plagiarism_url)), array('class' => 'url-container mt-1 mb-2'));
-        echo html_writer::end_tag('div');
-        
-        echo html_writer::link(
-            $submission->plagiarism_url, // Use the URL string directly
-            get_string('view_plagiarism_report', 'devcode'),
-            array('class' => 'btn btn-sm btn-outline-danger mt-2', 'target' => '_blank')
-        );
+        echo html_writer::tag('code', s($submission->plagiarism_url));
+    } else {
+        echo html_writer::tag('em', 'Không có URL báo cáo chi tiết');
     }
-
+    
     echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
+    
+    // Nút xem báo cáo đạo văn
+    if (!empty($submission->plagiarism_url)) {
+        echo html_writer::start_tag('div', array('class' => 'mt-2'));
+        echo html_writer::link(
+            $submission->plagiarism_url,
+            'Xem báo cáo đạo văn',
+            array('class' => 'btn btn-danger', 'target' => '_blank')
+        );
+        echo html_writer::end_tag('div');
+    }
+    
+    echo html_writer::end_tag('div'); // end plagiarism-warning
+    
+    echo html_writer::end_tag('div'); // end alert
     
     // Start a new info grid after the alert
     echo html_writer::start_tag('div', array('class' => 'devcode-info-grid'));
@@ -254,11 +312,6 @@ if ($submission->status === 'failed' || $submission->status === 'error') {
     echo html_writer::tag('div', get_string('error', 'core'), array('class' => 'devcode-error-heading'));
     echo html_writer::tag('pre', $submission->feedback, array('class' => 'devcode-error-details'));
     echo html_writer::end_tag('div');
-}
-
-// Make sure we don't have an unclosed div if there's a plagiarism alert and no error
-if ($submission->status === 'plagiarism') {
-    echo html_writer::end_tag('div'); // end the new info grid started after the alert
 }
 
 echo html_writer::end_tag('div'); // end card-body
@@ -315,7 +368,24 @@ echo html_writer::end_tag('div'); // end stats-container
 if (!empty($submission->feedback)) {
     echo html_writer::start_tag('div', array('class' => 'devcode-feedback-container'));
     echo html_writer::tag('h4', get_string('feedback', 'devcode'), array('class' => 'devcode-feedback-title'));
-    echo html_writer::tag('div', $submission->feedback, array('class' => 'devcode-feedback-content'));
+    
+    // Filter out API error details and show generic message instead
+    $feedback = $submission->feedback;
+    if (strpos($feedback, 'API Error:') !== false || strpos($feedback, 'HTTP 401') !== false) {
+        // For administrators/teachers who can manage the module
+        if (has_capability('mod/devcode:manage', $context)) {
+            // Show original error with notice that it's only visible to staff
+            echo html_writer::tag('div', get_string('errordetailsstaff', 'devcode'), array('class' => 'alert alert-warning'));
+            echo html_writer::tag('div', $feedback, array('class' => 'devcode-feedback-content'));
+        } else {
+            // For students, show generic error message
+            echo html_writer::tag('div', get_string('systemerror', 'devcode'), array('class' => 'devcode-feedback-content'));
+        }
+    } else {
+        // Show regular feedback
+        echo html_writer::tag('div', $feedback, array('class' => 'devcode-feedback-content'));
+    }
+    
     echo html_writer::end_tag('div');
 }
 
@@ -408,11 +478,34 @@ if (!empty($test_results)) {
         if (!$result->passed && !empty($result->error_message)) {
             echo html_writer::start_tag('tr', array('class' => 'devcode-testcase-error-row'));
             echo html_writer::tag('td', get_string('errormessage', 'devcode') . ':', array('class' => 'devcode-error-label'));
-            echo html_writer::tag(
-                'td',
-                html_writer::tag('pre', s($result->error_message)),
-                array('colspan' => '3', 'class' => 'devcode-testcase-error-message')
-            );
+            
+            // Filter system/API errors for regular users
+            $error_message = $result->error_message;
+            if (strpos($error_message, 'API Error:') !== false || strpos($error_message, 'HTTP') !== false) {
+                if (has_capability('mod/devcode:manage', $context)) {
+                    // Admin/teacher view - show full error
+                    echo html_writer::tag(
+                        'td',
+                        html_writer::tag('pre', s($error_message)),
+                        array('colspan' => '3', 'class' => 'devcode-testcase-error-message')
+                    );
+                } else {
+                    // Student view - show generic error
+                    echo html_writer::tag(
+                        'td',
+                        html_writer::tag('pre', get_string('systemerror', 'devcode')),
+                        array('colspan' => '3', 'class' => 'devcode-testcase-error-message')
+                    );
+                }
+            } else {
+                // Regular error messages that don't expose system details
+                echo html_writer::tag(
+                    'td',
+                    html_writer::tag('pre', s($error_message)),
+                    array('colspan' => '3', 'class' => 'devcode-testcase-error-message')
+                );
+            }
+            
             echo html_writer::end_tag('tr');
         }
     }

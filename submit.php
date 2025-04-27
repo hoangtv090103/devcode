@@ -15,12 +15,21 @@ require_once($CFG->dirroot . '/mod/devcode/classes/form/submission_form.php');
 // Required imports for context and file handling
 require_once($CFG->libdir . '/accesslib.php');
 require_once($CFG->libdir . '/filelib.php');
+require_once($CFG->dirroot . '/lib/moodlelib.php');
 
 // Import core classes
 use core\output\html_writer;
 use core\notification;
 use core\context\module as context_module;
 use core\context\user as context_user;
+use moodle_url;
+
+// Kiểm tra và xử lý khi tham số id bị thiếu
+if (!isset($_GET['id']) && !isset($_POST['id'])) {
+    // Không tìm thấy tham số id, chuyển hướng về trang chính của khóa học với thông báo lỗi
+    $course_url = new \moodle_url('/course/view.php', array('id' => 1)); // ID 1 là trang chủ site
+    redirect($course_url, get_string('missingidparam', 'devcode', 'id'), null, \core\output\notification::NOTIFY_ERROR);
+}
 
 $id = required_param('id', PARAM_INT); // Course Module ID
 
@@ -366,7 +375,7 @@ if ($mform->is_cancelled()) {
     $submission->devcodeid = $devcode->id;
     $submission->userid = $USER->id;
     $submission->code = $code_content;
-    $submission->language = $devcode->language;
+    $submission->language_id = $devcode->language;
     $submission->timemodified = $now;
     $submission->timecreated = $now;
     $submission->status = 'processing';
@@ -378,36 +387,107 @@ if ($mform->is_cancelled()) {
     // Lưu bài nộp vào cơ sở dữ liệu
     $submission->id = $DB->insert_record('devcode_submissions', $submission);
 
-    // Set initial status to "processing"
+    // Process the submission (plagiarism check + grading)
     $submission->status = 'processing';
     $submission->feedback = get_string('processing', 'devcode', '');
     $DB->update_record('devcode_submissions', $submission);
 
-    // Trigger asynchronous processing via a separate API call
-    $async_check_data = array(
-        'submission_id' => $submission->id,
-        'async' => true
-    );
-    $async_url = $CFG->devcode['api_base_url'] . $CFG->devcode['api_endpoints']['async_processing'];
-    devcode_api_request($async_url, 'POST', $async_check_data);
-
-    // Always show success message since processing is happening asynchronously
-    \core\notification::success(get_string('submissionsuccess', 'devcode'));
-
-    // Get the submission record to ensure it exists before redirecting
-    $submission_exists = $DB->record_exists('devcode_submissions', array('id' => $submission->id));
-    $cm_exists = $DB->record_exists('course_modules', array('id' => $cm->id));
-
-    if ($submission_exists && $cm_exists) {
-        // Chuyển hướng đến trang kết quả thay vì trang xem bài tập
-        redirect(new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $submission->id)));
-    } else {
-        // Fallback if the submission or course module doesn't exist
-        redirect(new moodle_url('/course/view.php', array('id' => $course->id)));
+    // Extend time limit for processing
+    $original_time_limit = ini_get('max_execution_time');
+    set_time_limit(300); // 5 minutes
+    
+    try {
+        // Check for plagiarism first
+        $plagiarism_detected = false;
+        if ($devcode->enable_plagiarism) {
+            debugging('Starting plagiarism detection for submission: ' . $submission->id, DEBUG_DEVELOPER);
+            $plagiarism_detected = devcode_check_plagiarism($submission->id);
+        }
+        
+        // If no plagiarism detected, proceed with grading
+        if (!$plagiarism_detected) {
+            debugging('No plagiarism detected, proceeding with grading for submission: ' . $submission->id, DEBUG_DEVELOPER);
+            
+            // Get test cases for the assignment
+            $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id), 'id ASC');
+            
+            // Perform grading using Judge0 direct integration
+            $graded_submission = devcode_grade_with_judge0($submission, $devcode, $context);
+            
+            // Update submission with grading results if successful
+            if ($graded_submission) {
+                // Copy relevant fields from graded submission
+                $submission->status = $graded_submission->status ?? 'error';
+                $submission->score = $graded_submission->grade ?? 0;
+                $submission->feedback = $graded_submission->message ?? '';
+                $submission->passed_tests = $graded_submission->tests_passed ?? 0;
+                $submission->total_tests = $graded_submission->tests_total ?? 0;
+                $submission->timemodified = time();
+                
+                // Save test results if available
+                if (!empty($graded_submission->test_results)) {
+                    $test_results = json_decode($graded_submission->test_results);
+                    
+                    // Store individual test results in the database
+                    if (is_array($test_results)) {
+                        foreach ($test_results as $result) {
+                            $test_result = new stdClass();
+                            $test_result->submissionid = $submission->id;
+                            $test_result->testcaseid = $result->test_id;
+                            $test_result->passed = ($result->status === DEVCODE_STATUS_ACCEPTED) ? 1 : 0;
+                            $test_result->output = $result->actual;
+                            $test_result->error_message = $result->message;
+                            $test_result->execution_time = $result->time ?? 0;
+                            $test_result->memory_used = $result->memory ?? 0;
+                            $test_result->timecreated = time();
+                            
+                            // Insert the test result record
+                            $DB->insert_record('devcode_submission_results', $test_result);
+                        }
+                    }
+                }
+                
+                // Update database
+                $DB->update_record('devcode_submissions', $submission);
+                
+                // Update grades in gradebook
+                if ($submission->status === DEVCODE_STATUS_ACCEPTED || 
+                    $submission->status === DEVCODE_STATUS_PARTIALLY_ACCEPTED) {
+                    devcode_update_grades($devcode, $submission->userid);
+                }
+            }
+        }
+    } catch (Exception $e) {
+        debugging('Error during submission processing: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        // Update submission to show error
+        $submission->status = 'error';
+        $submission->feedback = get_string('error') . ': ' . $e->getMessage();
+        $DB->update_record('devcode_submissions', $submission);
+    } finally {
+        // Reset to original time limit
+        set_time_limit($original_time_limit);
     }
+
+    // Always show success message since processing is happening synchronously
+    $message = get_string('submissionsuccess', 'devcode');
+    $notification = new \core\output\notification($message, \core\output\notification::NOTIFY_SUCCESS);
+    
+    // Make sure to include header before notification if not already done
+    echo $OUTPUT->header();
+    echo $OUTPUT->render($notification);
+    
+    // Create the result URL as a string
+    $result_url = $CFG->wwwroot . '/mod/devcode/view_result.php?id=' . $cm->id . '&sid=' . $submission->id;
+
+    // Add a JavaScript redirect instead of using redirect() function
+    echo '<script>window.setTimeout(function() { window.location.href = "' . $result_url . '"; }, 2000);</script>';
+    
+    // Close the page properly
+    echo $OUTPUT->footer();
+    exit;
 }
 
-// Hiển thị form
+// Display the form
 echo $OUTPUT->header();
 
 // Hiển thị tên bài tập và đề bài
@@ -560,73 +640,8 @@ if ($submission && !empty($submission->score)) {
     echo html_writer::end_tag('div'); // grading-results
 }
 
-// Hiển thị form nộp bài
+// Display the submission form
 $mform->display();
 
-// Hiển thị lịch sử nộp bài nếu có từ 2 bài nộp trở lên
-// $submission_count = $DB->count_records('devcode_submissions', array(
-//     'devcodeid' => $devcode->id,
-//     'userid' => $USER->id
-// ));
-
-// if ($submission_count > 1) {
-//     // Lấy lịch sử nộp bài
-//     $submissions = $DB->get_records(
-//         'devcode_submissions',
-//         array('devcodeid' => $devcode->id, 'userid' => $USER->id),
-//         'timecreated DESC'
-//     );
-
-//     // Hiển thị bảng lịch sử
-//     echo html_writer::tag('h3', get_string('submissionhistory', 'devcode'));
-
-//     echo html_writer::start_tag('table', array('class' => 'submission-history-table'));
-
-//     // Header
-//     echo html_writer::start_tag('thead');
-//     echo html_writer::start_tag('tr');
-//     echo html_writer::tag('th', get_string('submissiontime', 'devcode'));
-//     echo html_writer::tag('th', get_string('status', 'devcode'));
-//     echo html_writer::tag('th', get_string('pointsearned', 'devcode'));
-//     echo html_writer::tag('th', get_string('actions', 'devcode'));
-//     echo html_writer::end_tag('tr');
-//     echo html_writer::end_tag('thead');
-
-//     // Rows
-//     echo html_writer::start_tag('tbody');
-//     foreach ($submissions as $sub) {
-//         echo html_writer::start_tag('tr');
-
-//         // Thời gian nộp
-//         echo html_writer::tag('td', userdate($sub->timecreated));
-
-//         // Trạng thái
-//         $status_class = 'status-' . $sub->status;
-//         // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
-//         if ($sub->status === 'plagiarism_detected') {
-//             $status_text = 'Potential plagiarism detected';
-//         } else {
-//             $status_text = get_string('submissionstatus_' . $sub->status, 'devcode', userdate($sub->timemodified));
-//         }
-//         echo html_writer::tag('td', html_writer::tag('span', $status_text, array('class' => $status_class)));
-
-//         // Điểm số
-//         $score_text = isset($sub->score) ? $sub->score . '/10' : '-';
-//         echo html_writer::tag('td', $score_text);
-
-//         // Hành động
-//         echo html_writer::start_tag('td');
-//         echo html_writer::link(
-//             new moodle_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sub->id)),
-//             get_string('viewdetails', 'devcode'),
-//             array('class' => 'btn btn-sm btn-secondary')
-//         );
-//         echo html_writer::end_tag('td');
-
-//         echo html_writer::end_tag('tr');
-//     }
-//     echo html_writer::end_tag('tbody');
-//     echo html_writer::end_tag('table');
-// }
-
+// Footer is properly called once at the end
 echo $OUTPUT->footer();

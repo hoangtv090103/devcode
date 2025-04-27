@@ -1,18 +1,6 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
-//
-// Moodle is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Moodle is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+// This file is part of the DevCode module for Moodle
+// Configuration for the Judge0 API integration
 
 /**
  * Cấu hình kết nối đến Backend API cho DevCode
@@ -24,43 +12,54 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-// Thiết lập kết nối backend API
+// Define the debugging constant if not already defined
+if (!defined('DEBUG_DEVELOPER')) {
+    define('DEBUG_DEVELOPER', 32767);
+}
+
+// DevCode module configuration with default values
+// These can be overridden in settings.php
 $CFG->devcode = [
-    // URL gốc của backend API
-    'api_base_url' => 'http://localhost:8000',
-    
-    // API endpoints
-    'api_endpoints' => [
-        'submissions' => '/api/v1/submissions/',
-        'languages' => '/api/v1/j0/languages',
-        'statuses' => '/api/v1/j0/statuses',
-        'async_processing' => '/api/v1/submissions/async-process',
+    // Judge0 API integration
+    'judge0' => [
+        'api_url' => 'https://judge0-ce.p.rapidapi.com',
+        'api_key' => 'b7cb79bc20msh631e775baf24956p192284jsnc6b0aa67f960',
+        'timeout' => 30,
+        'max_wait' => 60,
+        'poll_interval' => 3,
+        'wait_for_result' => false
     ],
     
-    // Thời gian timeout cho kết nối API (giây)
-    'api_timeout' => 30,
+    // Dolos plagiarism detection configuration
+    'dolos' => [
+        'api_url' => 'https://dolos.ugent.be/api',
+        'api_key' => '',
+        'timeout' => 120,
+        'max_poll_attempts' => 30,
+        'poll_interval' => 5,
+        'threshold' => 0.8
+    ],
     
-    // Thử lại kết nối API khi thất bại
-    'api_retry_count' => 2,
-    
-    // Thời gian đợi giữa các lần thử lại (giây)
-    'api_retry_wait' => 2,
-    
-    // Bật/tắt chế độ mô phỏng khi không kết nối được API
-    'api_mock_enabled' => true,
-    
-    // Ngôn ngữ lập trình mặc định
-    'default_language' => '71', // Python 3.8.1
-    
-    // Thời gian thực thi tối đa cho mỗi test case (mili giây)
-    'default_time_limit' => 5000,
-    
-    // Bộ nhớ tối đa cho mỗi test case (KB)
-    'default_memory_limit' => 262144, // 256MB
-    
-    // Các loại file được chấp nhận khi upload
-    'allowed_file_types' => ['.py', '.java', '.cpp', '.c', '.js', '.cs'],
-    
-    // Kích thước file tối đa (bytes)
-    'max_file_size' => 1048576, // 1MB
-]; 
+    // Plagiarism detection settings
+    'plagiarism' => [
+        'enabled' => true,
+        'language_mapping' => [
+            'c' => 'c',
+            'cpp' => 'cpp',
+            'java' => 'java',
+            'python' => 'python',
+            'javascript' => 'javascript',
+            'php' => 'php',
+            'ruby' => 'ruby',
+            'go' => 'go',
+            'csharp' => 'csharp',
+            'kotlin' => 'kotlin',
+            'rust' => 'rust',
+            'swift' => 'swift',
+            'typescript' => 'typescript'
+        ]
+    ]
+];
+
+// Note: These default values will be used unless overridden by settings in the Moodle admin UI
+// The settings are managed in settings.php
