@@ -329,4 +329,21 @@ $string['dolos_timeout_desc'] = 'Thời gian tối đa (giây) chờ phản hồ
 
 $string['submissionstatus_6'] = 'Đúng một phần';
 
+// Testcase file upload
+$string['testcasefile'] = 'Tải lên file testcase';
+$string['testcasefile_help'] = 'Tải lên một file JSON chứa các testcase. Mỗi testcase bao gồm các trường: input, output, points, time_limit, description và visible_to_student. Điều này sẽ thêm hoặc thay thế các testcase hiện có.';
+$string['testcasefileformat'] = 'Định dạng file testcase';
+$string['testcasefileformatdesc'] = 'Tải lên file JSON với một mảng các đối tượng testcase. Mỗi testcase nên có các trường: "input", "output", "points", "time_limit", "description" và "visible_to_student".';
+$string['testcasefileerror'] = 'Lỗi khi xử lý file testcase';
+$string['testcasefileempty'] = 'File testcase tải lên trống hoặc không hợp lệ';
+$string['testcasefileprocessed'] = '{$a} testcase đã được nhập thành công';
+$string['testcaseuploadexample'] = 'Định dạng ví dụ: [{"input":"1 2","output":"3","points":10,"time_limit":3000,"description":"Bài toán cộng","visible_to_student":1}]';
+$string['testcaseuploadtip'] = 'Gợi ý: Bạn có thể tạo testcase thủ công trước, sau đó xuất ra để xem định dạng chuẩn';
+$string['testcasedefaults'] = 'Giá trị mặc định: points = 10.0, time_limit = 3000ms, visible_to_student = false. Chỉ có trường input và output là bắt buộc.';
+$string['testcaseexport'] = 'Xuất testcase hiện tại';
+$string['testcaseimport'] = 'Nhập testcase';
+$string['downloadasjson'] = 'Tải xuống dưới dạng file {$a}';
+$string['downloadastxt'] = 'Tải xuống dưới dạng file {$a}';
+$string['download'] = 'Tải xuống';
+
 ?>

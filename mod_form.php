@@ -74,6 +74,45 @@ class mod_devcode_mod_form extends moodleform_mod
         // Test cases section
         $mform->addElement('header', 'testcasessection', get_string('testcases', 'devcode'));
 
+        // Export button for existing assignments
+        if (isset($this->_instance) && $this->_instance) {
+            $export_url = new moodle_url('/mod/devcode/export_testcases.php', array('id' => $this->_cm->id));
+            $export_button = html_writer::link(
+                $export_url,
+                get_string('testcaseexport', 'devcode'),
+                array('class' => 'btn btn-secondary', 'target' => '_blank')
+            );
+            $mform->addElement('html', '<div class="form-group row">
+                <div class="col-md-3"></div>
+                <div class="col-md-9">' . $export_button . '</div>
+            </div>');
+        }
+
+        // File manager for uploading test case file
+        $mform->addElement(
+            'filemanager',
+            'testcasefile',
+            get_string('testcasefile', 'devcode'),
+            null,
+            array(
+                'subdirs' => 0,
+                'maxbytes' => $CFG->maxbytes,
+                'maxfiles' => 1,
+                'accepted_types' => array('.json', '.txt')
+            )
+        );
+        $mform->addHelpButton('testcasefile', 'testcasefile', 'devcode');
+
+        // Example format
+        $mform->addElement('html', '<div class="form-group">
+            <div class="col-md-3"></div>
+            <div class="col-md-9">
+                <small class="text-muted">' . get_string('testcaseuploadexample', 'devcode') . '</small><br>
+                <small class="text-muted">' . get_string('testcaseuploadtip', 'devcode') . '</small><br>
+                <small class="text-muted">' . get_string('testcasedefaults', 'devcode') . '</small>
+            </div>
+        </div>');
+
         // Add dynamic test cases repeater elements
         $testcaserepeat = 2; // Default number of test cases
         if (isset($this->_instance) && $this->_instance) {
@@ -273,6 +312,12 @@ class mod_devcode_mod_form extends moodleform_mod
         global $DB;
 
         if (isset($this->_instance) && $this->_instance) {
+            // Prepare file manager for test case file uploads
+            $draftitemid = file_get_submitted_draft_itemid('testcasefile');
+            file_prepare_draft_area($draftitemid, $this->context->id, 'mod_devcode', 'testcasefile', 0,
+                array('subdirs' => 0, 'maxbytes' => $this->course->maxbytes, 'maxfiles' => 1));
+            $default_values['testcasefile'] = $draftitemid;
+            
             // Load existing test cases
             $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $this->_instance), 'id ASC');
             $testcasecount = 0;
@@ -312,6 +357,7 @@ class mod_devcode_mod_form extends moodleform_mod
      */
     function validation($data, $files)
     {
+        global $DB, $USER;
         $errors = parent::validation($data, $files);
 
         // Validate test cases for deletion
@@ -345,6 +391,38 @@ class mod_devcode_mod_form extends moodleform_mod
             $threshold = $data['similarity_threshold'];
             if (!is_numeric($threshold) || $threshold < 1 || $threshold > 100) {
                 $errors['similarity_threshold'] = get_string('similaritythresholderror', 'devcode');
+            }
+        }
+
+        // Validate test case file (if uploaded)
+        if (!empty($data['testcasefile'])) {
+            $fs = get_file_storage();
+            $usercontext = context_user::instance($USER->id);
+            $draftfiles = $fs->get_area_files($usercontext->id, 'user', 'draft', $data['testcasefile'], 'id', false);
+            
+            if (!empty($draftfiles)) {
+                $file = reset($draftfiles);
+                $filename = $file->get_filename();
+                $extension = pathinfo($filename, PATHINFO_EXTENSION);
+                
+                // Check file type
+                if ($extension !== 'json' && $extension !== 'txt') {
+                    $errors['testcasefile'] = get_string('invalidfiletype', 'devcode', $filename);
+                } else {
+                    // Check file content (for JSON validity)
+                    $content = $file->get_content();
+                    if (empty($content)) {
+                        $errors['testcasefile'] = get_string('emptyfile', 'devcode');
+                    } else if ($extension === 'json') {
+                        // Validate JSON structure
+                        $json_data = json_decode($content, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            $errors['testcasefile'] = get_string('testcasefileerror', 'devcode') . ': ' . json_last_error_msg();
+                        } else if (!is_array($json_data)) {
+                            $errors['testcasefile'] = get_string('testcasefileerror', 'devcode') . ': ' . get_string('testcasefileformatdesc', 'devcode');
+                        }
+                    }
+                }
             }
         }
 

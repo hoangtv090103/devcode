@@ -347,4 +347,21 @@ $string['summary'] = 'Summary';
 $string['debug'] = 'Debug';
 $string['testcasespassed'] = 'Test Cases Passed';
 
+// Testcase file upload
+$string['testcasefile'] = 'Upload test cases file';
+$string['testcasefile_help'] = 'Upload a JSON file containing test cases. Each test case should include input, output, points, time_limit, description, and visible_to_student fields. This will add or replace existing test cases.';
+$string['testcasefileformat'] = 'Test case file format';
+$string['testcasefileformatdesc'] = 'Upload a JSON file with an array of test case objects. Each test case should have these fields: "input", "output", "points", "time_limit", "description", and "visible_to_student".';
+$string['testcasefileerror'] = 'Error processing test case file';
+$string['testcasefileempty'] = 'The uploaded test case file is empty or invalid';
+$string['testcasefileprocessed'] = '{$a} test cases have been successfully imported';
+$string['testcaseuploadexample'] = 'Example format: [{"input":"1 2","output":"3","points":10,"time_limit":3000,"description":"Addition test","visible_to_student":1}]';
+$string['testcaseuploadtip'] = 'Tip: You can first create test cases manually, then export them to see the expected format';
+$string['testcasedefaults'] = 'Default values: points = 10.0, time_limit = 3000ms, visible_to_student = false. Only input and output fields are required.';
+$string['testcaseexport'] = 'Export current test cases';
+$string['testcaseimport'] = 'Import test cases';
+$string['downloadasjson'] = 'Download as {$a} file';
+$string['downloadastxt'] = 'Download as {$a} file';
+$string['download'] = 'Download';
+
 ?>
