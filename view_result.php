@@ -43,6 +43,12 @@ $PAGE->activityheader->set_attrs($activityheader);
 // Thêm CSS cho hiển thị kết quả
 $PAGE->requires->css('/mod/devcode/styles.css');
 
+// Load Font Awesome for icons
+echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">';
+
+// Thêm JavaScript module cho AI helper
+$PAGE->requires->js_call_amd('mod_devcode/ai_helper', 'init');
+
 // Lấy thông tin submission
 try {
     $submission = $DB->get_record('devcode_submissions', array('id' => $sid), '*', MUST_EXIST);
@@ -311,7 +317,45 @@ if ($submission->status === 'failed' || $submission->status === 'error') {
     echo html_writer::start_tag('div', array('class' => 'devcode-error-message'));
     echo html_writer::tag('div', get_string('error', 'core'), array('class' => 'devcode-error-heading'));
     echo html_writer::tag('pre', $submission->feedback, array('class' => 'devcode-error-details'));
-    echo html_writer::end_tag('div');
+    
+    // Add AI Explain button for error messages if AI is enabled
+    if (!empty($devcode->ai_enabled)) {
+        // Initialize AI service to check remaining usage
+        $ai_service = new \mod_devcode\ai\service($devcode, $submission, $USER, $cm);
+        $remaining_explain = $ai_service->get_remaining_usage('explain');
+        
+        echo html_writer::start_tag('div', array('class' => 'devcode-ai-buttons'));
+        
+        // AI Explain button
+        $explain_attributes = array(
+            'class' => 'devcode-ai-explain-btn',
+            'data-cmid' => $cm->id,
+            'data-sid' => $submission->id,
+            'data-remaining' => $remaining_explain
+        );
+        
+        // Disable if no uses remaining
+        if ($remaining_explain <= 0) {
+            $explain_attributes['disabled'] = 'disabled';
+        }
+        
+        echo html_writer::tag(
+            'button',
+            '<i class="fa fa-robot"></i> ' . get_string('aiexplain', 'devcode'),
+            $explain_attributes
+        );
+        
+        // Display remaining counter
+        echo html_writer::tag(
+            'span',
+            get_string('airemaining', 'devcode', $remaining_explain),
+            array('class' => 'devcode-ai-counter ml-2 badge badge-info')
+        );
+        
+        echo html_writer::end_tag('div'); // end devcode-ai-buttons
+    }
+    
+    echo html_writer::end_tag('div'); // end devcode-error-message
 }
 
 echo html_writer::end_tag('div'); // end card-body
@@ -400,6 +444,77 @@ echo html_writer::end_tag('div');
 
 echo html_writer::start_tag('div', array('class' => 'devcode-card-body'));
 echo html_writer::tag('pre', html_writer::tag('code', s($submission->code)), array('class' => 'devcode-code-display'));
+
+// Add AI Hint and Improve buttons if AI is enabled
+if (!empty($devcode->ai_enabled)) {
+    // Initialize AI service (if not already initialized)
+    if (!isset($ai_service)) {
+        $ai_service = new \mod_devcode\ai\service($devcode, $submission, $USER, $cm);
+    }
+    
+    $remaining_hint = $ai_service->get_remaining_usage('hint');
+    $remaining_improve = $ai_service->get_remaining_usage('improve');
+    
+    echo html_writer::start_tag('div', array('class' => 'devcode-ai-buttons'));
+    
+    // AI Hint button
+    $hint_attributes = array(
+        'class' => 'devcode-ai-hint-btn',
+        'data-cmid' => $cm->id,
+        'data-sid' => $submission->id,
+        'data-remaining' => $remaining_hint
+    );
+    
+    // Disable if no uses remaining
+    if ($remaining_hint <= 0) {
+        $hint_attributes['disabled'] = 'disabled';
+    }
+    
+    echo html_writer::tag(
+        'button',
+        '<i class="fa fa-lightbulb"></i> ' . get_string('aihint', 'devcode'),
+        $hint_attributes
+    );
+    
+    // Display remaining counter for hint
+    echo html_writer::tag(
+        'span',
+        get_string('airemaining', 'devcode', $remaining_hint),
+        array('class' => 'devcode-ai-counter ml-2 badge badge-info')
+    );
+    
+    // Only show improve button for accepted/graded submissions
+    if ($submission->status === 'graded' || $submission->status === '1') {
+        // AI Improve button
+        $improve_attributes = array(
+            'class' => 'devcode-ai-improve-btn ml-3',
+            'data-cmid' => $cm->id,
+            'data-sid' => $submission->id,
+            'data-remaining' => $remaining_improve
+        );
+        
+        // Disable if no uses remaining
+        if ($remaining_improve <= 0) {
+            $improve_attributes['disabled'] = 'disabled';
+        }
+        
+        echo html_writer::tag(
+            'button',
+            '<i class="fa fa-wrench"></i> ' . get_string('aiimprove', 'devcode'),
+            $improve_attributes
+        );
+        
+        // Display remaining counter for improve
+        echo html_writer::tag(
+            'span',
+            get_string('airemaining', 'devcode', $remaining_improve),
+            array('class' => 'devcode-ai-counter ml-2 badge badge-info')
+        );
+    }
+    
+    echo html_writer::end_tag('div'); // end devcode-ai-buttons
+}
+
 echo html_writer::end_tag('div'); // end card-body
 echo html_writer::end_tag('div'); // end submitted-code-card
 // Nút điều hướng

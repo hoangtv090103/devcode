@@ -44,6 +44,57 @@ class mod_devcode_mod_form extends moodleform_mod
         // Allow submissions from date
         $mform->addElement('date_time_selector', 'allowsubmissionsfromdate', get_string('allowsubmissionsfromdate', 'devcode'), array('optional' => true));
 
+        // AI Hint settings
+        $mform->addElement('header', 'aisettings', get_string('aisettings', 'devcode', null, true));
+        
+        // Enable AI features
+        $mform->addElement(
+            'advcheckbox',
+            'ai_enabled',
+            get_string('aienabled', 'devcode', null, true),
+            get_string('aienabledhelp', 'devcode', null, true),
+            array(),
+            array(0, 1)
+        );
+        $mform->setDefault('ai_enabled', 0);
+        $mform->addHelpButton('ai_enabled', 'aienabled', 'devcode');
+        
+        // Explain limit
+        $mform->addElement(
+            'text',
+            'ai_explain_limit',
+            get_string('aiexplainlimit', 'devcode', null, true),
+            array('size' => 3)
+        );
+        $mform->setType('ai_explain_limit', PARAM_INT);
+        $mform->setDefault('ai_explain_limit', 3);
+        $mform->disabledIf('ai_explain_limit', 'ai_enabled', 'neq', 1);
+        $mform->addHelpButton('ai_explain_limit', 'aiexplainlimit', 'devcode');
+        
+        // Hint limit
+        $mform->addElement(
+            'text',
+            'ai_hint_limit',
+            get_string('aihintlimit', 'devcode', null, true),
+            array('size' => 3)
+        );
+        $mform->setType('ai_hint_limit', PARAM_INT);
+        $mform->setDefault('ai_hint_limit', 3);
+        $mform->disabledIf('ai_hint_limit', 'ai_enabled', 'neq', 1);
+        $mform->addHelpButton('ai_hint_limit', 'aihintlimit', 'devcode');
+        
+        // Improve limit
+        $mform->addElement(
+            'text',
+            'ai_improve_limit',
+            get_string('aiimprovelimit', 'devcode', null, true),
+            array('size' => 3)
+        );
+        $mform->setType('ai_improve_limit', PARAM_INT);
+        $mform->setDefault('ai_improve_limit', 1);
+        $mform->disabledIf('ai_improve_limit', 'ai_enabled', 'neq', 1);
+        $mform->addHelpButton('ai_improve_limit', 'aiimprovelimit', 'devcode');
+        
         // Plagiarism detection settings
         $mform->addElement('header', 'plagiarismsettings', get_string('plagiarismsettings', 'devcode'));
 

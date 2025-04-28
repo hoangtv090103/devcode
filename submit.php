@@ -10,6 +10,7 @@
 
 require_once('../../config.php');
 require_once(dirname(__FILE__) . '/lib.php');
+require_once(dirname(__FILE__) . '/locallib.php');
 require_once($CFG->dirroot . '/mod/devcode/classes/form/submission_form.php');
 
 // Required imports for context and file handling
@@ -57,10 +58,11 @@ $PAGE->activityheader->set_attrs($activityheader);
 
 // Thêm CSS cho code editor
 $PAGE->requires->css('/mod/devcode/styles.css');
-
-// Load JavaScript modules - bỏ comment dòng này để sử dụng JS modules
+// Load Font Awesome
+echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">';
 $PAGE->requires->js_call_amd('mod_devcode/code_editor', 'init');
 $PAGE->requires->js_call_amd('mod_devcode/tabs', 'init');
+$PAGE->requires->js_call_amd('mod_devcode/ai_helper', 'init');
 
 // Add file upload styles via JavaScript
 $PAGE->requires->js_init_code("
@@ -257,6 +259,33 @@ if ($data_validated) {
     debugging('Form data was validated.', DEBUG_DEVELOPER);
 } else if ($was_posted) {
     debugging('Form data was not validated.', DEBUG_DEVELOPER);
+}
+
+// Check for previous submission
+$previous_submission = null;
+$show_previous_code = true;
+
+// Get AI settings
+$has_ai = !empty($devcode->ai_enabled);
+$ai_service = null;
+$ai_hint_remaining = 0;
+
+try {
+    $previous_submission = $DB->get_record(
+        'devcode_submissions',
+        array('devcodeid' => $devcode->id, 'userid' => $USER->id),
+        '*',
+        IGNORE_MULTIPLE
+    );
+    
+    // Get AI hint remaining usage if AI is enabled
+    if ($has_ai && $previous_submission) {
+        $ai_service = new \mod_devcode\ai\service($devcode, $previous_submission, $USER, $cm);
+        $ai_hint_remaining = $ai_service->get_remaining_usage('hint');
+    }
+} catch (Exception $e) {
+    // If error fetching previous submission, don't show it
+    $show_previous_code = false;
 }
 
 // Xử lý form khi được submit
@@ -659,6 +688,39 @@ if ($submission && !empty($submission->score)) {
 
 // Display the submission form
 $mform->display();
+
+// If there's a previous submission and AI is enabled, show hint button
+if ($has_ai && $previous_submission) {
+    echo html_writer::start_tag('div', array('class' => 'devcode-ai-buttons mt-4'));
+    
+    // AI Hint button
+    $hint_attributes = array(
+        'class' => 'devcode-ai-hint-btn',
+        'data-cmid' => $cm->id,
+        'data-sid' => $previous_submission->id,
+        'data-remaining' => $ai_hint_remaining
+    );
+    
+    // Disable if no uses remaining
+    if ($ai_hint_remaining <= 0) {
+        $hint_attributes['disabled'] = 'disabled';
+    }
+    
+    echo html_writer::tag(
+        'button',
+        '<i class="fa fa-lightbulb"></i> ' . get_string('aihint', 'devcode'),
+        $hint_attributes
+    );
+    
+    // Display remaining counter
+    echo html_writer::tag(
+        'span',
+        get_string('airemaining', 'devcode', $ai_hint_remaining),
+        array('class' => 'devcode-ai-counter ml-2 badge badge-info')
+    );
+    
+    echo html_writer::end_tag('div'); // end devcode-ai-buttons
+}
 
 // Footer is properly called once at the end
 echo $OUTPUT->footer();

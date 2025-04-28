@@ -114,5 +114,64 @@ function xmldb_devcode_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 20250409002, 'devcode');
     }
 
+    if ($oldversion < 20250428005) {
+        // Add new fields for AI hints feature to devcode table
+        $table = new xmldb_table('devcode');
+
+        // Define field ai_enabled to be added
+        $field = new xmldb_field('ai_enabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'allowed_attempts');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Define field ai_hint_limit
+        $field = new xmldb_field('ai_hint_limit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '3', 'ai_enabled');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Define field ai_explain_limit
+        $field = new xmldb_field('ai_explain_limit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '3', 'ai_hint_limit');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Define field ai_improve_limit
+        $field = new xmldb_field('ai_improve_limit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '1', 'ai_explain_limit');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Create new table for tracking AI usage
+        $table = new xmldb_table('devcode_ai_usage');
+
+        // Add fields to the new table
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('devcodeid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('submissionid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('type', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('query', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('response', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+
+        // Add keys to the table
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
+        $table->add_key('devcodeid', XMLDB_KEY_FOREIGN, array('devcodeid'), 'devcode', array('id'));
+        $table->add_key('userid', XMLDB_KEY_FOREIGN, array('userid'), 'user', array('id'));
+        $table->add_key('submissionid', XMLDB_KEY_FOREIGN, array('submissionid'), 'devcode_submissions', array('id'));
+
+        // Add indexes
+        $table->add_index('type', XMLDB_INDEX_NOTUNIQUE, array('type'));
+
+        // Create the table
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        // Set the savepoint
+        upgrade_mod_savepoint(true, 20250428005, 'devcode');
+    }
+
     return true;
 } 

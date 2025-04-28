@@ -83,4 +83,18 @@ if ($ADMIN->fulltree) {
         $default_dolos_timeout,
         PARAM_INT
     ));
+
+    // AI settings
+    $settings->add(new admin_setting_heading(
+        'devcode/aiheading',
+        get_string('aisettings', 'devcode'),
+        get_string('aienabledhelp', 'devcode')
+    ));
+    
+    $settings->add(new admin_setting_configpasswordunmask(
+        'mod_devcode/gemini_api_key',
+        get_string('geminiapikey', 'devcode'),
+        get_string('geminiapikeydesc', 'devcode'),
+        ''
+    ));
 } 
