@@ -418,7 +418,6 @@ if ($mform->is_cancelled()) {
             if ($graded_submission) {
                 // Copy relevant fields from graded submission
                 $submission->status = $graded_submission->status ?? 'error';
-                $submission->score = $graded_submission->grade ?? 0;
                 $submission->feedback = $graded_submission->message ?? '';
                 $submission->passed_tests = $graded_submission->tests_passed ?? 0;
                 $submission->total_tests = $graded_submission->tests_total ?? 0;
@@ -427,6 +426,9 @@ if ($mform->is_cancelled()) {
                 // Save test results if available
                 if (!empty($graded_submission->test_results)) {
                     $test_results = json_decode($graded_submission->test_results);
+                    
+                    // Calculate score based on sum of points from passed test cases
+                    $total_points = 0;
                     
                     // Store individual test results in the database
                     if (is_array($test_results)) {
@@ -441,10 +443,25 @@ if ($mform->is_cancelled()) {
                             $test_result->memory_used = $result->memory ?? 0;
                             $test_result->timecreated = time();
                             
+                            // Add points to total if test passed
+                            if ($test_result->passed) {
+                                // Get testcase points
+                                $testcase = $DB->get_record('devcode_testcases', array('id' => $result->test_id), 'points');
+                                if ($testcase) {
+                                    $total_points += $testcase->points;
+                                }
+                            }
+                            
                             // Insert the test result record
                             $DB->insert_record('devcode_submission_results', $test_result);
                         }
                     }
+                    
+                    // Set score to total points from passed test cases
+                    $submission->score = $total_points;
+                } else {
+                    // If no test results, use grade from graded_submission
+                    $submission->score = $graded_submission->grade ?? 0;
                 }
                 
                 // Update database

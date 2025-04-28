@@ -883,10 +883,28 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
         $submission->message = get_string('noteststpassed', 'devcode');
     }
 
-    // Calculate grade.
-    // Use total_points field instead of grade (which doesn't exist)
-    $total_points = isset($devcode->total_points) ? $devcode->total_points : 10.0;
-    $submission->grade = ($submission->tests_passed / $submission->tests_total) * $total_points;
+    // Calculate total points and earned points from test cases
+    $total_points = 0;
+    $earned_points = 0;
+    
+    // Calculate total available points
+    foreach ($test_results as $test_result) {
+        $testcase = $DB->get_record('devcode_testcases', array('id' => $test_result->test_id), 'points');
+        if ($testcase) {
+            $total_points += $testcase->points;
+            
+            // Add points if test passed
+            if ($test_result->status === DEVCODE_STATUS_ACCEPTED) {
+                $earned_points += $testcase->points;
+                $test_result->earned_points = $testcase->points;
+            } else {
+                $test_result->earned_points = 0;
+            }
+        }
+    }
+    
+    // Set grade to earned points
+    $submission->grade = $earned_points;
     $submission->test_results = json_encode($test_results);
 
     return $submission;
