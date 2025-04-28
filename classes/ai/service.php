@@ -194,7 +194,27 @@ class service {
         $prompt .= $description . "\n\n";
         $prompt .= "với mã nguồn: \n";
         $prompt .= $this->submission->code . "\n\n";
-        $prompt .= "Họ gặp khó khăn. Hãy đưa ra một gợi ý ngắn gọn để định hướng, không cung cấp lời giải.";
+        
+        // Add error context if submission failed
+        if ($this->submission->status === 'failed' || $this->submission->status === 'error') {
+            $error_message = $this->submission->feedback;
+            // If feedback is empty, try getting error from test results
+            if (empty($error_message)) {
+                 global $DB;
+                 $test_results = $DB->get_records('devcode_submission_results', array('submissionid' => $this->submission->id));
+                 foreach ($test_results as $result) {
+                     if (!empty($result->error_message)) {
+                         $error_message = $result->error_message;
+                         break; // Use the first error found
+                     }
+                 }
+            }
+            if (!empty($error_message)) {
+                $prompt .= "Lần nộp bài gần nhất của họ gặp lỗi: \n" . $error_message . "\n\n";
+            }
+        }
+        
+        $prompt .= "Họ gặp khó khăn. Hãy đưa ra một gợi ý ngắn gọn để định hướng, không cung cấp lời giải trực tiếp.";
         
         // Send to API
         $response = $this->api_client->generate_content($prompt);
