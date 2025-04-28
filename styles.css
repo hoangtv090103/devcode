@@ -1863,10 +1863,19 @@ input[name^="testcase_delete"]:checked + .testcase-delete-container {
 
 .devcode-ai-counter {
     font-size: 0.8rem;
-    padding: 3px 6px;
+    padding: 4px 10px;
     background-color: #e8f1fd;
-    color: #4180c9;
-    border-radius: 3px;
+    color: #3a7eba;
+    border-radius: 12px;
+    font-weight: 500;
+    margin-left: 5px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 25px;
+    text-align: center;
+    transition: all 0.2s ease;
 }
 
 /* AI Response Modal */
