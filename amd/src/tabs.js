@@ -25,6 +25,20 @@ define(['jquery'], function($) {
             // Add/remove classes for conditional styling
             if (targetTab === 'code-tab') {
                 $('.responsive-layout').addClass('code-tab-active').removeClass('file-tab-active');
+                
+                // Trigger a resize event to make CodeMirror redraw itself properly
+                // This ensures the editor is properly rendered after tab switch
+                setTimeout(function() {
+                    window.dispatchEvent(new Event('resize'));
+                    
+                    // If we have a CodeMirror instance, ensure it has focus
+                    const cmElement = document.querySelector('.codemirror-wrapper .cm-editor');
+                    if (cmElement) {
+                        // Focus the editor programmatically
+                        const cmEvent = new CustomEvent('focus-editor');
+                        document.dispatchEvent(cmEvent);
+                    }
+                }, 10);
             } else {
                 $('.responsive-layout').addClass('file-tab-active').removeClass('code-tab-active');
             }
@@ -41,6 +55,11 @@ define(['jquery'], function($) {
             } else {
                 $toggleText.text(M.util.get_string('showintro', 'devcode'));
             }
+            
+            // Trigger resize to make CodeMirror update
+            setTimeout(function() {
+                window.dispatchEvent(new Event('resize'));
+            }, 10);
         });
         
         // Set initial state - code tab is active by default
