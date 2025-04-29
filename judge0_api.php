@@ -139,13 +139,26 @@ function devcode_send_to_api($submission_data, $config)
     // Set up URL based on API type
     if ($is_rapidapi) {
         // RapidAPI format with fields=* parameter
-        $url = $config['judge0_api_url'] . '/submissions?base64_encoded=false&wait=' . $wait_param . '&fields=*';
+        $url = $config['judge0_api_url'] . '/submissions?base64_encoded=true&wait=' . $wait_param . '&fields=*';
     } else if ($is_local) {
         // For local Judge0, we'll use the token endpoint instead of direct wait parameter
         $url = $config['judge0_api_url'] . '/submissions';
     } else {
         // Default format
-        $url = $config['judge0_api_url'] . '/submissions?base64_encoded=false&wait=' . $wait_param;
+        $url = $config['judge0_api_url'] . '/submissions?base64_encoded=true&wait=' . $wait_param;
+    }
+
+    // If base64_encoded=true, encode content before sending
+    if (strpos($url, 'base64_encoded=true') !== false) {
+        if (isset($api_payload['source_code'])) {
+            $api_payload['source_code'] = base64_encode($api_payload['source_code']);
+        }
+        if (isset($api_payload['stdin'])) {
+            $api_payload['stdin'] = base64_encode($api_payload['stdin']);
+        }
+        if (isset($api_payload['expected_output'])) {
+            $api_payload['expected_output'] = base64_encode($api_payload['expected_output']);
+        }
     }
 
     debugging('Gửi dữ liệu đến Judge0 API: ' . $url, DEBUG_DEVELOPER);
@@ -200,6 +213,23 @@ function devcode_send_to_api($submission_data, $config)
 
     $data = json_decode($response, true);
     debugging('Parsed API response: ' . json_encode($data), DEBUG_DEVELOPER);
+
+    // If using base64_encoded=true, decode relevant fields in the response
+    if (strpos($url, 'base64_encoded=true') !== false && !empty($data)) {
+        // If result is directly in the response
+        if (isset($data['stdout']) && !empty($data['stdout'])) {
+            $data['stdout'] = base64_decode($data['stdout']);
+        }
+        if (isset($data['stderr']) && !empty($data['stderr'])) {
+            $data['stderr'] = base64_decode($data['stderr']);
+        }
+        if (isset($data['compile_output']) && !empty($data['compile_output'])) {
+            $data['compile_output'] = base64_decode($data['compile_output']);
+        }
+        if (isset($data['message']) && !empty($data['message'])) {
+            $data['message'] = base64_decode($data['message']);
+        }
+    }
 
     // Different Judge0 implementations might format the response differently
     if (!isset($data['token'])) {
@@ -262,7 +292,7 @@ function devcode_poll_submission($token, $config = null)
     }
     
     $url = rtrim($config['judge0_api_url'], '/') . '/submissions/' . $token;
-    $url .= '?base64_encoded=false&fields=*';
+    $url .= '?base64_encoded=true&fields=*';
     
     debugging('Polling URL: ' . $url, DEBUG_DEVELOPER);
 
@@ -386,8 +416,8 @@ function devcode_poll_submission($token, $config = null)
                 ];
             }
             
-            $result = json_decode($response, true);
-            if ($result === null) {
+            $poll_result = json_decode($response, true);
+            if ($poll_result === null) {
                 if (++$retries <= $max_retries) {
                     debugging('Lỗi phân tích JSON khi thăm dò, thử lại (' . $retries . '/' . $max_retries . '): ' . json_last_error_msg(), DEBUG_DEVELOPER);
                     sleep($retry_delay);
@@ -399,7 +429,30 @@ function devcode_poll_submission($token, $config = null)
                     'error_code' => DEVCODE_JUDGE0_ERROR_RESPONSE
                 ];
             }
-            $poll_result = $result;
+            
+            // If we're using base64_encoded=true, decode the fields
+            if (strpos($url, 'base64_encoded=true') !== false && !empty($poll_result)) {
+                // Decode stdout if present
+                if (isset($poll_result['stdout']) && !empty($poll_result['stdout'])) {
+                    $poll_result['stdout'] = base64_decode($poll_result['stdout']);
+                }
+                
+                // Decode stderr if present
+                if (isset($poll_result['stderr']) && !empty($poll_result['stderr'])) {
+                    $poll_result['stderr'] = base64_decode($poll_result['stderr']);
+                }
+                
+                // Decode compile_output if present
+                if (isset($poll_result['compile_output']) && !empty($poll_result['compile_output'])) {
+                    $poll_result['compile_output'] = base64_decode($poll_result['compile_output']);
+                }
+                
+                // Decode message if present
+                if (isset($poll_result['message']) && !empty($poll_result['message'])) {
+                    $poll_result['message'] = base64_decode($poll_result['message']);
+                }
+            }
+            
             debugging('Poll result parsed: ' . json_encode($poll_result), DEBUG_DEVELOPER);
             break;
         } catch (Exception $e) {
@@ -992,7 +1045,7 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
     // Tạo URL
     $base_url = rtrim($config['judge0_api_url'], '/');
     $batch_endpoint = "/submissions/batch";
-    $url = $base_url . $batch_endpoint . "?base64_encoded=false";
+    $url = $base_url . $batch_endpoint . "?base64_encoded=true";
     
     // Thực hiện curl request
     $json_payload = json_encode($api_payload);
@@ -1045,6 +1098,31 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
         ];
     }
     
+    // Decode base64 fields in submissions if needed
+    if (strpos($url, 'base64_encoded=true') !== false && !empty($data['submissions'])) {
+        foreach ($data['submissions'] as &$submission) {
+            // Decode stdout if present
+            if (isset($submission['stdout']) && !empty($submission['stdout'])) {
+                $submission['stdout'] = base64_decode($submission['stdout']);
+            }
+            
+            // Decode stderr if present
+            if (isset($submission['stderr']) && !empty($submission['stderr'])) {
+                $submission['stderr'] = base64_decode($submission['stderr']);
+            }
+            
+            // Decode compile_output if present
+            if (isset($submission['compile_output']) && !empty($submission['compile_output'])) {
+                $submission['compile_output'] = base64_decode($submission['compile_output']);
+            }
+            
+            // Decode message if present
+            if (isset($submission['message']) && !empty($submission['message'])) {
+                $submission['message'] = base64_decode($submission['message']);
+            }
+        }
+    }
+    
     return $data;
 }
 
@@ -1093,7 +1171,7 @@ function devcode_get_batch_results($tokens, $config = null) {
     // Tạo URL
     $base_url = rtrim($config['judge0_api_url'], '/');
     $batch_endpoint = "/submissions/batch";
-    $url = $base_url . $batch_endpoint . "?tokens=" . urlencode($tokens_param) . "&base64_encoded=false&fields=*";
+    $url = $base_url . $batch_endpoint . "?tokens=" . urlencode($tokens_param) . "&base64_encoded=true&fields=*";
     
     // Thực hiện curl request
     $ch = curl_init($url);
@@ -1140,6 +1218,31 @@ function devcode_get_batch_results($tokens, $config = null) {
             'message' => 'Lỗi khi parse JSON response: ' . json_last_error_msg(),
             'response' => $response
         ];
+    }
+    
+    // Decode base64 fields in submissions if needed
+    if (strpos($url, 'base64_encoded=true') !== false && !empty($data['submissions'])) {
+        foreach ($data['submissions'] as &$submission) {
+            // Decode stdout if present
+            if (isset($submission['stdout']) && !empty($submission['stdout'])) {
+                $submission['stdout'] = base64_decode($submission['stdout']);
+            }
+            
+            // Decode stderr if present
+            if (isset($submission['stderr']) && !empty($submission['stderr'])) {
+                $submission['stderr'] = base64_decode($submission['stderr']);
+            }
+            
+            // Decode compile_output if present
+            if (isset($submission['compile_output']) && !empty($submission['compile_output'])) {
+                $submission['compile_output'] = base64_decode($submission['compile_output']);
+            }
+            
+            // Decode message if present
+            if (isset($submission['message']) && !empty($submission['message'])) {
+                $submission['message'] = base64_decode($submission['message']);
+            }
+        }
     }
     
     return $data;
@@ -1241,7 +1344,7 @@ function devcode_run_code_with_batch($source_code, $language_id, $test_cases, $c
                     $test_case = $test_cases[$index] ?? [];
                     $processed_results[] = [
                         'test_case' => $test_case,
-                        'result' => devcode_map_judge0_status($result),
+                        'result' => devcode_map_judge0_status($result['status']['id'] ?? 0),
                         'execution_time' => $result['time'] ?? null,
                         'memory' => $result['memory'] ?? null,
                         'stdout' => $result['stdout'] ?? null,
