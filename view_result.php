@@ -15,10 +15,45 @@ require_once(dirname(__FILE__) . '/lib.php');
 require_once($CFG->libdir . '/accesslib.php');
 
 use \core\output\html_writer;
+use \moodle_exception;
+use \moodle_url;
 
-// Course Module ID
-$id = required_param('id', PARAM_INT);
+// Get submission ID - this is always required
 $sid = required_param('sid', PARAM_INT); // Submission ID
+
+// Get the submission first
+$submission = $DB->get_record('devcode_submissions', array('id' => $sid), '*');
+if (!$submission) {
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification(get_string('notfound', 'devcode') . ': ' . get_string('submission', 'devcode'), 'error');
+    echo $OUTPUT->footer();
+    exit;
+}
+
+// Course Module ID - either provided or determined from the submission
+$id = optional_param('id', 0, PARAM_INT);
+
+if ($id == 0) {
+    // If id is not provided, get it from the submission
+    $sql = "SELECT cm.id 
+            FROM {course_modules} cm
+            JOIN {modules} m ON m.id = cm.module
+            WHERE m.name = 'devcode' AND cm.instance = :devcodeid";
+    
+    $params = ['devcodeid' => $submission->devcodeid];
+    
+    // Get the course module id from the submission's devcode id
+    $cmrecord = $DB->get_record_sql($sql, $params);
+    
+    if (!$cmrecord || !isset($cmrecord->id)) {
+        echo $OUTPUT->header();
+        echo $OUTPUT->notification(get_string('invalidcoursemodule', 'error'), 'error');
+        echo $OUTPUT->footer();
+        exit;
+    }
+    
+    $id = $cmrecord->id;
+}
 
 // Lấy thông tin course module, course, và devcode
 $cm = get_coursemodule_from_id('devcode', $id, 0, false, MUST_EXIST);
@@ -28,6 +63,10 @@ $devcode = $DB->get_record('devcode', array('id' => $cm->instance), '*', MUST_EX
 // Kiểm tra đăng nhập và quyền truy cập
 require_login($course, true, $cm);
 $context = \core\context\module::instance($cm->id);
+// Ensure the context is valid
+if (!$context) {
+    throw new moodle_exception('invalidcontext');
+}
 
 // Thiết lập trang
 $PAGE->set_url('/mod/devcode/view_result.php', array('id' => $cm->id, 'sid' => $sid));
@@ -43,24 +82,15 @@ $PAGE->activityheader->set_attrs($activityheader);
 // Thêm CSS cho hiển thị kết quả
 $PAGE->requires->css('/mod/devcode/styles.css');
 
-// Lấy thông tin submission
-try {
-    $submission = $DB->get_record('devcode_submissions', array('id' => $sid), '*', MUST_EXIST);
-} catch (dml_missing_record_exception $e) {
-    // Handle the case when the submission doesn't exist
-    echo $OUTPUT->header();
-    echo $OUTPUT->notification(get_string('notfound', 'devcode') . ': ' . get_string('submission', 'devcode'), 'error');
-    echo $OUTPUT->continue_button(new \moodle_url('/mod/devcode/view.php', array('id' => $cm->id)));
-    echo $OUTPUT->footer();
-    exit;
-}
-
 // Kiểm tra quyền xem submission
 $canviewsubmission = has_capability('mod/devcode:manage', $context) ||
     ($submission->userid == $USER->id && has_capability('mod/devcode:submit', $context));
 
 if (!$canviewsubmission) {
-    throw new \moodle_exception('nopermissions', 'error', '', get_string('viewsubmission', 'devcode'));
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification(get_string('nopermissions', 'error') . ': ' . get_string('viewsubmission', 'devcode'), 'error');
+    echo $OUTPUT->footer();
+    exit;
 }
 
 // Lấy thông tin ngôn ngữ
