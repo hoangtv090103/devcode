@@ -123,7 +123,7 @@ if (!empty($input)) {
 } else {
     // Lấy các test cases hiển thị từ cơ sở dữ liệu
     $visible_testcases = $DB->get_records('devcode_testcases', 
-        array('devcodeid' => $devcode->id, 'visible' => 1), 'id ASC');
+        array('devcodeid' => $devcode->id, 'visible_to_student' => 1), 'id ASC');
         
     if (!empty($visible_testcases)) {
         foreach ($visible_testcases as $tc) {
