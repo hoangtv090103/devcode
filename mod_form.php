@@ -3,6 +3,9 @@ defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/course/moodleform_mod.php');
 require_once($CFG->dirroot . '/mod/devcode/lib.php');
+require_once($CFG->libdir . '/filelib.php');
+require_once($CFG->libdir . '/accesslib.php');
+require_once($CFG->libdir . '/weblib.php'); // For moodle_url
 
 /**
  * Module instance settings form
@@ -103,15 +106,7 @@ class mod_devcode_mod_form extends moodleform_mod
         );
         $mform->addHelpButton('testcasefile', 'testcasefile', 'devcode');
 
-        // Example format
-        $mform->addElement('html', '<div class="form-group">
-            <div class="col-md-3"></div>
-            <div class="col-md-9">
-                <small class="text-muted">' . get_string('testcaseuploadexample', 'devcode') . '</small><br>
-                <small class="text-muted">' . get_string('testcaseuploadtip', 'devcode') . '</small><br>
-                <small class="text-muted">' . get_string('testcasedefaults', 'devcode') . '</small>
-            </div>
-        </div>');
+        // Example format - REMOVED
 
         // Add dynamic test cases repeater elements
         $testcaserepeat = 2; // Default number of test cases
@@ -221,9 +216,9 @@ class mod_devcode_mod_form extends moodleform_mod
         $repeateloptions['testcase_description']['type'] = PARAM_RAW;
 
         // Set default values
-        // $repeateloptions['testcase_points']['default'] = 10.0; // Remove default
-        // $repeateloptions['testcase_time_limit']['default'] = 3000; // Remove default
-        // $repeateloptions['testcase_visible']['default'] = 0; // Remove default
+        $repeateloptions['testcase_points']['default'] = 10.0; // Uncomment default
+        $repeateloptions['testcase_time_limit']['default'] = 3000; // Uncomment default
+        $repeateloptions['testcase_visible']['default'] = 0; // Set default
         $repeateloptions['testcase_delete']['default'] = 0;
 
         $this->repeat_elements(
@@ -315,7 +310,7 @@ class mod_devcode_mod_form extends moodleform_mod
             // Prepare file manager for test case file uploads
             $draftitemid = file_get_submitted_draft_itemid('testcasefile');
             file_prepare_draft_area($draftitemid, $this->context->id, 'mod_devcode', 'testcasefile', 0,
-                array('subdirs' => 0, 'maxbytes' => $this->course->maxbytes, 'maxfiles' => 1));
+                array('subdirs' => 0, 'maxbytes' => $this->_course->maxbytes, 'maxfiles' => 1));
             $default_values['testcasefile'] = $draftitemid;
             
             // Load existing test cases
