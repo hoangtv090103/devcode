@@ -1,11 +1,11 @@
 <?php
 defined('MOODLE_INTERNAL') || die();
 
-$string['modulename'] = 'Devcode';
-$string['modulenameplural'] = 'Devcode';
+$string['modulename'] = 'Lập trình';
+$string['modulenameplural'] = 'Lập trình';
 $string['modulename_help'] = 'The Devcode module allows instructors to create programming assignments that are automatically graded.';
 $string['pluginname'] = 'Devcode';
-$string['pluginadministration'] = 'Devcode administration';
+$string['pluginadministration'] = 'Lập trình';
 
 // Form strings
 $string['assignmentname'] = 'Name';

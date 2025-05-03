@@ -1,7 +1,7 @@
 <?php
 defined('MOODLE_INTERNAL') || die();
 
-$string['modulename'] = 'Devcode';
+$string['modulename'] = 'Code';
 $string['modulenameplural'] = 'Devcode';
 $string['modulename_help'] = 'Mô-đun Devcode cho phép giảng viên tạo các bài tập lập trình được chấm điểm tự động.';
 $string['pluginname'] = 'Devcode';
