@@ -2,8 +2,6 @@
  * JavaScript for loading CodeMirror editor in a way that avoids version conflicts
  * 
  * @module     mod_devcode/code_editor_loader
- * @copyright  2024 DevCode Team
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 define(['jquery'], function($) {
 

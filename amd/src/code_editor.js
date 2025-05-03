@@ -2,8 +2,6 @@
  * JavaScript for code editor functionality
  * 
  * @module     mod_devcode/code_editor
- * @copyright  2024 DevCode Team
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 define(['jquery', 'mod_devcode/code_editor_loader'], function($, EditorLoader) {
     
