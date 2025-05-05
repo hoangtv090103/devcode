@@ -11,6 +11,9 @@
 require('../../config.php');
 require_once($CFG->dirroot . '/mod/devcode/lib.php');
 
+// Required imports
+use \core\output\html_writer;
+
 // Course module id
 $id = required_param('id', PARAM_INT);
 $group = optional_param('group', 0, PARAM_INT); // Group ID
@@ -104,9 +107,54 @@ if (empty($students)) {
             echo '<td>' . $submissioncountdisplay . '</td>';
             
             // Status
-            $statusclass = 'status-' . $latestsubmission->status;
-            $statustext = get_string('submissionstatus_' . $latestsubmission->status, 'mod_devcode', userdate($latestsubmission->timemodified));
-            echo '<td><div class="' . $statusclass . '">' . $statustext . '</div></td>';
+            // --- Apply color logic similar to view_result.php ---
+            $status_value = $latestsubmission->status;
+            if (is_numeric($status_value)) {
+                $status_map = [
+                    1 => 'accepted', 2 => 'wrong_answer', 3 => 'time_limit', 4 => 'memory_limit',
+                    5 => 'compile_error', 6 => 'partially_accepted', 7 => 'runtime_error',
+                    8 => 'pending', 9 => 'processing'
+                ];
+                $status_value = $status_map[$status_value] ?? 'unknown_status';
+            }
+
+            $status_class = 'badge ';
+            switch ($status_value) {
+                case 'accepted':
+                case 'graded':
+                    $status_class .= 'badge-success'; break;
+                case 'pending':
+                case 'processing':
+                    $status_class .= 'badge-secondary'; break;
+                case 'partially_accepted':
+                    $status_class .= 'badge-info'; break;
+                case 'plagiarism':
+                case 'plagiarism_detected':
+                    $status_class .= 'badge-warning'; break;
+                case 'wrong_answer':
+                case 'time_limit':
+                case 'memory_limit':
+                case 'compile_error':
+                case 'runtime_error':
+                case 'failed':
+                case 'error':
+                    $status_class .= 'badge-danger'; break;
+                default:
+                    $status_class .= 'badge-light';
+            }
+            
+            $status_string_id = 'submissionstatus_' . $status_value;
+            if (get_string_manager()->string_exists($status_string_id, 'devcode')) {
+                $statustext = get_string($status_string_id, 'devcode');
+            } else if (get_string_manager()->string_exists($status_value, 'devcode')) {
+                 $statustext = get_string($status_value, 'devcode');
+            } else {
+                 $statustext = get_string('submissionstatus_error', 'devcode');
+            }
+            // --- End color logic ---
+            
+            // Output status using the badge class
+            echo '<td>' . html_writer::tag('span', $statustext, array('class' => $status_class)) . '</td>';
             
             // Grade
             if (isset($latestsubmission->score)) {
@@ -126,10 +174,12 @@ if (empty($students)) {
             echo '<a href="' . $viewurl . '" class="btn btn-secondary btn-sm">' . get_string('viewsubmission', 'mod_devcode') . '</a>';
             
             // Grade button (if needed and ungraded)
+            /* // Temporarily hidden as requested
             if ($latestsubmission->status != 'graded') {
                 $gradeurl = $CFG->wwwroot . '/mod/devcode/grade.php?id=' . $cm->id . '&sid=' . $latestsubmission->id . '&userid=' . $student->id;
                 echo ' <a href="' . $gradeurl . '" class="btn btn-primary btn-sm">' . get_string('grade', 'mod_devcode') . '</a>';
             }
+            */
             
             echo '</td>';
         } else {
