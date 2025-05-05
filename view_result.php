@@ -93,9 +93,9 @@ if (!$canviewsubmission) {
     exit;
 }
 
-// Lấy thông tin ngôn ngữ
-$language_id = isset($submission->language_id) ? $submission->language_id : $submission->language;
-$language_name = devcode_get_language_by_id($language_id);
+// Lấy thông tin ngôn ngữ từ cài đặt bài tập (devcode), không phải từ submission
+$language_id_setting = $devcode->language; // Assumes 'language' field stores the allowed language ID
+$language_name = devcode_get_language_by_id($language_id_setting);
 
 // Lấy kết quả test cases nếu có
 $test_results = $DB->get_records('devcode_submission_results', array('submissionid' => $submission->id));
@@ -233,7 +233,9 @@ echo html_writer::end_tag('div');
 // Ngôn ngữ
 echo html_writer::start_tag('div', array('class' => 'devcode-info-item'));
 echo html_writer::tag('div', get_string('programminglanguage', 'devcode'), array('class' => 'devcode-info-label'));
-echo html_writer::tag('div', s($language_name), array('class' => 'devcode-info-value'));
+echo html_writer::start_tag('div', array('class' => 'devcode-info-value')); // Keep the value wrapper
+echo html_writer::tag('span', s($language_name), array('class' => 'devcode-language-tag')); // Wrap language name in span with class
+echo html_writer::end_tag('div'); // end devcode-info-value
 echo html_writer::end_tag('div');
 
 // Hiển thị thông báo đang xử lý nếu submission đang ở trạng thái processing
@@ -897,6 +899,17 @@ echo '
     padding: 8px 16px;
     text-decoration: none;
     font-weight: 500;
+}
+
+.devcode-language-tag {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #495057; /* Dark gray text */
+    background-color: #e9ecef; /* Light gray background */
+    border-radius: 0.25rem; /* Rounded corners */
+    border: 1px solid #ced4da; /* Subtle border */
 }
 
 @media (max-width: 768px) {
