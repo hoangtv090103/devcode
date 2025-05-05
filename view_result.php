@@ -132,6 +132,85 @@ echo html_writer::start_tag('div', array('class' => 'devcode-card-body'));
 // Hiển thị thông tin trong grid
 echo html_writer::start_tag('div', array('class' => 'devcode-info-grid'));
 
+// --- Trạng thái bài nộp --- START
+echo html_writer::start_tag('div', array('class' => 'devcode-info-item'));
+echo html_writer::tag('div', get_string('status', 'devcode'), array('class' => 'devcode-info-label')); // Added Label
+
+// First, map numeric statuses to string statuses if necessary
+$status_value = $submission->status;
+if (is_numeric($status_value)) {
+    // Map numeric status codes to string equivalents
+    $status_map = [
+        1 => 'accepted',           // Accepted
+        2 => 'wrong_answer',       // Wrong Answer
+        3 => 'time_limit',         // Time Limit Exceeded
+        4 => 'memory_limit',       // Memory Limit Exceeded
+        5 => 'compile_error',      // Compilation Error
+        6 => 'partially_accepted', // Partially Accepted
+        7 => 'runtime_error',      // Runtime Error
+        8 => 'pending',            // Pending
+        9 => 'processing'          // Processing
+    ];
+    if (isset($status_map[$status_value])) {
+        $status_value = $status_map[$status_value];
+    } else {
+        $status_value = 'unknown_status';
+    }
+}
+
+// Now determine the badge class based on the (potentially converted) string status
+$status_class = 'badge '; // Keep 'badge' class for Bootstrap styling
+switch ($status_value) {
+    case 'accepted':
+    case 'graded':
+        $status_class .= 'badge-success'; // Green
+        break;
+    case 'pending':
+    case 'processing':
+        $status_class .= 'badge-secondary'; // Gray
+        break;
+    case 'partially_accepted':
+        $status_class .= 'badge-info'; // Blue
+        break;
+    case 'plagiarism':
+    case 'plagiarism_detected':
+        $status_class .= 'badge-warning'; // Yellow
+        break;
+    case 'wrong_answer':
+    case 'time_limit':
+    case 'memory_limit':
+    case 'compile_error':
+    case 'runtime_error':
+    case 'failed':
+    case 'error':
+        $status_class .= 'badge-danger'; // Red
+        break;
+    default:
+        $status_class .= 'badge-light'; // Light gray
+}
+
+// Check if status is not empty before using it as a string identifier
+if (!empty($status_value)) {
+    $status_string_id = 'submissionstatus_' . $status_value;
+    if (get_string_manager()->string_exists($status_string_id, 'devcode')) {
+        $status_string = get_string($status_string_id, 'devcode');
+    } else if (get_string_manager()->string_exists($status_value, 'devcode')) {
+        $status_string = get_string($status_value, 'devcode');
+    } else {
+        $status_string = get_string('submissionstatus_error', 'devcode');
+    }
+} else {
+    $status_string = get_string('submissionstatus_error', 'devcode');
+}
+
+// Output the badge within the info item value div
+echo html_writer::start_tag('div', array('class' => 'devcode-info-value')); // Added value wrapper
+echo html_writer::tag('span', $status_string, array('class' => $status_class, 'style' => 'font-size: 1em; padding: 0.4em 0.7em;')); // Adjusted style inline for now
+echo html_writer::end_tag('div'); // end devcode-info-value
+
+echo html_writer::end_tag('div'); // end devcode-info-item for status
+// --- Trạng thái bài nộp --- END
+
 // Thông tin người nộp
 if (has_capability('mod/devcode:manage', $context)) {
     $user = $DB->get_record('user', array('id' => $submission->userid));
@@ -155,68 +234,6 @@ echo html_writer::end_tag('div');
 echo html_writer::start_tag('div', array('class' => 'devcode-info-item'));
 echo html_writer::tag('div', get_string('programminglanguage', 'devcode'), array('class' => 'devcode-info-label'));
 echo html_writer::tag('div', s($language_name), array('class' => 'devcode-info-value'));
-echo html_writer::end_tag('div');
-
-// Hiển thị trạng thái và thông tin chung
-$status_class = 'badge ';
-switch ($submission->status) {
-    case 'graded':
-        $status_class .= 'badge-success';
-        break;
-    case 'failed':
-        $status_class .= 'badge-warning';
-        break;
-    case 'error':
-        $status_class .= 'badge-danger';
-        break;
-    case 'processing':
-        $status_class .= 'badge-info';
-        break;
-    case 'plagiarism':
-        $status_class .= 'badge-danger';
-        break;
-    default:
-        $status_class .= 'badge-primary';
-}
-
-echo html_writer::start_tag('div', array('class' => 'submission-status'));
-// Check if status is not empty before using it as a string identifier
-if (!empty($submission->status)) {
-    // Convert numeric status codes to their string equivalents if needed
-    $status_value = $submission->status;
-    if (is_numeric($status_value)) {
-        // Map numeric status codes to string equivalents
-        $status_map = [
-            1 => 'accepted',
-            2 => 'wrong_answer',
-            3 => 'time_limit',
-            4 => 'memory_limit',
-            5 => 'compile_error',
-            6 => 'partially_accepted',
-            7 => 'runtime_error',
-            8 => 'pending',
-            9 => 'processing'
-        ];
-        if (isset($status_map[$status_value])) {
-            $status_value = $status_map[$status_value];
-        }
-    }
-    
-    // Try to get a specialized submission status string first
-    $status_string_id = 'submissionstatus_' . $status_value;
-    if (get_string_manager()->string_exists($status_string_id, 'devcode')) {
-        $status_string = get_string($status_string_id, 'devcode');
-    } else if (get_string_manager()->string_exists($status_value, 'devcode')) {
-        // Fall back to direct status string
-        $status_string = get_string($status_value, 'devcode');
-    } else {
-        // If neither exists, use a generic status string
-        $status_string = get_string('submissionstatus_error', 'devcode');
-    }
-} else {
-    $status_string = get_string('submissionstatus_error', 'devcode');
-}
-echo html_writer::tag('span', $status_string, array('class' => $status_class));
 echo html_writer::end_tag('div');
 
 // Hiển thị thông báo đang xử lý nếu submission đang ở trạng thái processing
@@ -643,34 +660,6 @@ echo '
 .devcode-info-value {
     font-size: 16px;
     color: #333;
-}
-
-.devcode-status-badge {
-    display: inline-block;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.status-submitted {
-    background-color: #e7f1ff;
-    color: #0d6efd;
-}
-
-.status-graded {
-    background-color: #d1f2ea;
-    color: #198754;
-}
-
-.status-failed {
-    background-color: #fee2e2;
-    color: #dc3545;
-}
-
-.status-error {
-    background-color: #fee2e2;
-    color: #dc3545;
 }
 
 .devcode-error-message {
