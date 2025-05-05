@@ -1,0 +1,9 @@
+# Ignore the actual configuration file containing API keys
+config.php
+
+# Ignore Mac OS files
+.DS_Store
+
+# Ignore any other files that might contain sensitive information
+*.log
+*.cache 

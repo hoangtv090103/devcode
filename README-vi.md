@@ -26,8 +26,12 @@ DevCode là một module hoạt động của Moodle được thiết kế để
     git clone <url-repo-plugin-cua-ban> devcode
     # HOẶC sao chép thư mục devcode vào đây
     ```
-3.  **Nâng cấp Cơ sở dữ liệu Moodle:** Đăng nhập vào Moodle với tư cách quản trị viên. Đi tới `Quản trị trang` > `Thông báo`. Moodle sẽ phát hiện plugin mới và yêu cầu bạn nâng cấp cơ sở dữ liệu Moodle. Làm theo hướng dẫn trên màn hình.
-4.  **Cấu hình Cài đặt Plugin:**
+3.  **Cấu hình Khóa API:**
+    *   Sao chép `config.example.php` thành `config.php` trong thư mục plugin.
+    *   Chỉnh sửa `config.php` và thay thế các giá trị mẫu (`YOUR_JUDGE0_API_KEY_HERE` và `YOUR_DOLOS_API_KEY_HERE`) bằng khóa API thực tế của bạn.
+    *   Lưu ý: `config.php` được loại trừ khỏi kiểm soát phiên bản để tránh làm lộ khóa API của bạn.
+4.  **Nâng cấp Cơ sở dữ liệu Moodle:** Đăng nhập vào Moodle với tư cách quản trị viên. Đi tới `Quản trị trang` > `Thông báo`. Moodle sẽ phát hiện plugin mới và yêu cầu bạn nâng cấp cơ sở dữ liệu Moodle. Làm theo hướng dẫn trên màn hình.
+5.  **Cấu hình Cài đặt Plugin:**
     *   Điều hướng đến `Quản trị trang` > `Plugin` > `Các module hoạt động` > `DevCode`.
     *   Nhập URL điểm cuối Judge0 API của bạn (và khóa API nếu cần).
     *   (Tùy chọn) Cấu hình đường dẫn đến tệp thực thi Dolos hoặc điểm cuối API nếu sử dụng tính năng phát hiện đạo văn.

@@ -1,0 +1,9 @@
+# Treat config.php as binary so it's not included in merges
+config.php binary
+
+# Standard attributes
+**/yui/build/** -diff
+**/amd/build/** -diff
+**.js.map -diff
+**-min.js -diff
+**.min.js -diff 

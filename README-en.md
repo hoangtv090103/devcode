@@ -26,8 +26,12 @@ DevCode is a Moodle activity module designed for creating, submitting, and autom
     git clone <your-plugin-repo-url> devcode
     # OR copy the devcode folder here
     ```
-3.  **Upgrade Moodle Database:** Log in to Moodle as an administrator. Go to `Site administration` > `Notifications`. Moodle will detect the new plugin and prompt you to upgrade the Moodle database. Follow the on-screen instructions.
-4.  **Configure Plugin Settings:**
+3.  **Configure API Keys:**
+    *   Copy `config.example.php` to `config.php` in the plugin directory.
+    *   Edit `config.php` and replace the placeholder values (`YOUR_JUDGE0_API_KEY_HERE` and `YOUR_DOLOS_API_KEY_HERE`) with your actual API keys.
+    *   Note: `config.php` is excluded from version control to prevent exposing your API keys.
+4.  **Upgrade Moodle Database:** Log in to Moodle as an administrator. Go to `Site administration` > `Notifications`. Moodle will detect the new plugin and prompt you to upgrade the Moodle database. Follow the on-screen instructions.
+5.  **Configure Plugin Settings:**
     *   Navigate to `Site administration` > `Plugins` > `Activity modules` > `DevCode`.
     *   Enter your Judge0 API endpoint URL (and API key if required).
     *   (Optional) Configure the path to the Dolos executable or API endpoint if using plagiarism detection.
