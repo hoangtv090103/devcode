@@ -225,21 +225,66 @@ if ($cansubmit) {
             // Thời gian nộp
             echo \core\output\html_writer::tag('td', userdate($sub->timecreated));
 
-            // Trạng thái
-            $status_class = 'status-' . $sub->status;
-            // Xử lý riêng trạng thái plagiarism_detected để tránh lỗi nếu string không được tìm thấy
-            if ($sub->status === 'plagiarism_detected') {
-                $status_text = 'Potential plagiarism detected';
-            } else {
-                // Try to get the string, fall back to the status itself if not found
-                try {
-                    $status_text = get_string($sub->status, 'devcode');
-                } catch (Exception $e) {
-                    $status_text = ucfirst($sub->status); // Fallback to capitalized status name
-                    debugging('Missing string definition for status: ' . $sub->status, DEBUG_DEVELOPER);
-                }
+            // Trạng thái - Apply color coding logic from view_result.php
+            // --- START EDIT: Status color coding ---
+            $status_value = $sub->status;
+            // Map numeric statuses if needed (assuming similar mapping might be required)
+            // You might need to adjust this map based on actual status values used here
+            if (is_numeric($status_value)) {
+                $status_map = [
+                    1 => 'accepted', 2 => 'wrong_answer', 3 => 'time_limit', 4 => 'memory_limit',
+                    5 => 'compile_error', 6 => 'partially_accepted', 7 => 'runtime_error',
+                    8 => 'pending', 9 => 'processing'
+                ];
+                $status_value = $status_map[$status_value] ?? 'unknown_status';
             }
-            echo \core\output\html_writer::tag('td', \core\output\html_writer::tag('span', $status_text, array('class' => $status_class)));
+
+            $status_class = 'badge '; // Base class
+            switch ($status_value) {
+                case 'accepted':
+                case 'graded':
+                    $status_class .= 'badge-success'; break;
+                case 'pending':
+                case 'processing':
+                    $status_class .= 'badge-secondary'; break;
+                case 'partially_accepted':
+                    $status_class .= 'badge-info'; break;
+                case 'plagiarism':
+                case 'plagiarism_detected':
+                    $status_class .= 'badge-warning'; break;
+                case 'wrong_answer':
+                case 'time_limit':
+                case 'memory_limit':
+                case 'compile_error':
+                case 'runtime_error':
+                case 'failed':
+                case 'error':
+                    $status_class .= 'badge-danger'; break;
+                default:
+                    $status_class .= 'badge-light';
+            }
+
+            // Get the display string for the status, with fallbacks
+            $status_string = '';
+            if (!empty($status_value)) {
+                $status_string_id = 'submissionstatus_' . $status_value;
+                if (get_string_manager()->string_exists($status_string_id, 'devcode')) {
+                    $status_string = get_string($status_string_id, 'devcode');
+                } else if (get_string_manager()->string_exists($status_value, 'devcode')) {
+                    $status_string = get_string($status_value, 'devcode');
+                } else {
+                    // Fallback if specific string not found
+                    $status_string = ucfirst(str_replace('_', ' ', $status_value));
+                    debugging('Missing string definition for status: ' . $status_value, DEBUG_DEVELOPER);
+                }
+            } else {
+                $status_string = get_string('unknown'); // Default for empty status
+            }
+
+            echo \core\output\html_writer::start_tag('td');
+            echo \core\output\html_writer::tag('span', $status_string, array('class' => $status_class, 'style' => 'font-size: 0.9em; padding: 0.3em 0.6em;')); // Use span with class
+            echo \core\output\html_writer::end_tag('td');
+            // --- END EDIT: Status color coding ---
 
             // Điểm số
             $score_text = isset($sub->score) ? $sub->score . '/10' : '-';
