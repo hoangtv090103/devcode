@@ -95,6 +95,13 @@ try {
     $response['error'] = $e->getMessage();
 }
 
+// Ensure the response does not contain binary data that would cause JSON encoding issues
+if (isset($response['feedback']) && !mb_check_encoding($response['feedback'], 'UTF-8')) {
+    $response['feedback'] = mb_convert_encoding($response['feedback'], 'UTF-8', 'UTF-8, ASCII');
+    // Remove any remaining non-printable characters
+    $response['feedback'] = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $response['feedback']);
+}
+
 // Send JSON response
 header('Content-Type: application/json');
 echo json_encode($response);

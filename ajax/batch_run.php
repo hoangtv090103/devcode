@@ -33,6 +33,37 @@ function debug_log($message, $data = null, $debug = false) {
     return null;
 }
 
+/**
+ * Sanitize data for JSON encoding, removing problematic binary data
+ * @param mixed $data Data to sanitize
+ * @return mixed Sanitized data
+ */
+function sanitize_for_json($data) {
+    if (is_string($data)) {
+        // Check if the string is valid UTF-8
+        if (!mb_check_encoding($data, 'UTF-8')) {
+            // Try to convert to UTF-8
+            $data = mb_convert_encoding($data, 'UTF-8', 'UTF-8, ASCII, ISO-8859-1');
+        }
+        // Remove any non-printable characters
+        return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $data);
+    } else if (is_array($data)) {
+        // Recursively sanitize array values
+        foreach ($data as $key => $value) {
+            $data[$key] = sanitize_for_json($value);
+        }
+    } else if (is_object($data) && !($data instanceof \stdClass)) {
+        // Convert object to array and sanitize
+        $data = (array)$data;
+        foreach ($data as $key => $value) {
+            $data[$key] = sanitize_for_json($value);
+        }
+        $data = (object)$data;
+    }
+    
+    return $data;
+}
+
 $cmid = required_param('cmid', PARAM_INT);      // Course Module ID
 $code = required_param('code', PARAM_RAW);      // Source code to run
 $test_ids = required_param('test_ids', PARAM_RAW); // Test case IDs, comma-separated
@@ -205,6 +236,9 @@ try {
     if ($debug_mode) {
         $response['debug'] = $debug_info;
     }
+    
+    // Sanitize response before JSON encode to prevent encoding issues
+    $response = sanitize_for_json($response);
     
     echo json_encode($response);
     

@@ -57,7 +57,7 @@
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
                 <FIELD NAME="devcodeid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
-                <FIELD NAME="code" TYPE="text" LENGTH="medium" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="code" TYPE="text" LENGTH="big" NOTNULL="true" SEQUENCE="false" COMMENT="Source code submitted (can be binary)"/>
                 <FIELD NAME="language" TYPE="char" LENGTH="50" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="submitted" SEQUENCE="false"/>
                 <FIELD NAME="score" TYPE="float" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>

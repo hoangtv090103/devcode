@@ -128,5 +128,24 @@ function xmldb_devcode_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2024071500, 'devcode');
     }
 
+    // Upgrade for handling binary data in code submissions
+    if ($oldversion < 2025032102) {
+        
+        // Define field to be modified
+        $table = new xmldb_table('devcode_submissions');
+        $field = new xmldb_field('code', XMLDB_TYPE_TEXT, 'big', null, XMLDB_NOTNULL, null, null, 'userid');
+        
+        // Launch change of type for field code
+        $dbman->change_field_type($table, $field);
+        
+        // Set the binary attribute for MySQL
+        if ($DB->get_dbfamily() === 'mysql') {
+            $DB->execute("ALTER TABLE {devcode_submissions} MODIFY code LONGTEXT CHARACTER SET binary");
+        }
+        
+        // Savepoint reached
+        upgrade_mod_savepoint(true, 2025032102, 'devcode');
+    }
+
     return true;
 } 
