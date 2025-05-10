@@ -114,5 +114,19 @@ function xmldb_devcode_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 20250409002, 'devcode');
     }
 
+    if ($oldversion < 2024071500) {
+        // Define table devcode_testcases.
+        $table = new xmldb_table('devcode_testcases');
+        $field = new xmldb_field('memory_limit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, false, '128000', 'time_limit');
+
+        // Conditionally launch add field memory_limit.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Devcode savepoint reached.
+        upgrade_mod_savepoint(true, 2024071500, 'devcode');
+    }
+
     return true;
 } 

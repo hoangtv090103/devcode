@@ -411,6 +411,17 @@ echo html_writer::tag('div', get_string('executiontime', 'devcode'), array('clas
 echo html_writer::tag('div', number_format($execution_time / 1000, 3) . ' s', array('class' => 'devcode-stats-value'));
 echo html_writer::end_tag('div'); // end stats-item
 
+// Memory usage - display in MB
+$memory_used = 0;
+foreach ($test_results as $test) {
+    $memory_used = max($memory_used, isset($test->memory_used) ? $test->memory_used : (isset($test->memory) ? $test->memory : 0));
+}
+
+echo html_writer::start_tag('div', array('class' => 'devcode-stats-item'));
+echo html_writer::tag('div', get_string('memoryused', 'devcode'), array('class' => 'devcode-stats-label'));
+echo html_writer::tag('div', devcode_format_memory_mb($memory_used), array('class' => 'devcode-stats-value'));
+echo html_writer::end_tag('div'); // end stats-item
+
 echo html_writer::end_tag('div'); // end stats-container
 
 // Phản hồi

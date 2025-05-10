@@ -12,6 +12,7 @@
 require_once('../../config.php');
 require_once(dirname(__FILE__) . '/lib.php');
 require_once($CFG->dirroot . '/lib/classes/output/url_select.php');
+require_once('judge0_api.php');
 
 // Import required classes
 use \core\output\html_writer;
@@ -109,6 +110,7 @@ if (!empty($visibletestcases)) {
     echo \core\output\html_writer::tag('th', get_string('testcaseoutput', 'devcode'));
     echo \core\output\html_writer::tag('th', get_string('testcasepoints', 'devcode'));
     echo \core\output\html_writer::tag('th', get_string('testcasetimelimit', 'devcode'));
+    echo \core\output\html_writer::tag('th', get_string('testcasememorylimit', 'devcode'));
     echo \core\output\html_writer::end_tag('tr');
     echo \core\output\html_writer::end_tag('thead');
 
@@ -119,6 +121,7 @@ if (!empty($visibletestcases)) {
         echo \core\output\html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
         echo \core\output\html_writer::tag('td', $testcase->points, array('class' => 'testcase-points'));
         echo \core\output\html_writer::tag('td', $testcase->time_limit . ' ms', array('class' => 'testcase-timelimit'));
+        echo \core\output\html_writer::tag('td', devcode_format_memory_mb($testcase->memory_limit ?? 128000), array('class' => 'testcase-memorylimit'));
         echo \core\output\html_writer::end_tag('tr');
     }
     echo \core\output\html_writer::end_tag('tbody');
@@ -140,6 +143,7 @@ if ($canmanage && !empty($hiddentestcases)) {
     echo \core\output\html_writer::tag('th', get_string('testcaseoutput', 'devcode'));
     echo \core\output\html_writer::tag('th', get_string('testcasepoints', 'devcode'));
     echo \core\output\html_writer::tag('th', get_string('testcasetimelimit', 'devcode'));
+    echo \core\output\html_writer::tag('th', get_string('testcasememorylimit', 'devcode'));
     echo \core\output\html_writer::end_tag('tr');
     echo \core\output\html_writer::end_tag('thead');
 
@@ -150,6 +154,7 @@ if ($canmanage && !empty($hiddentestcases)) {
         echo \core\output\html_writer::tag('td', s($testcase->output), array('class' => 'testcase-output'));
         echo \core\output\html_writer::tag('td', $testcase->points, array('class' => 'testcase-points'));
         echo \core\output\html_writer::tag('td', $testcase->time_limit . ' ms', array('class' => 'testcase-timelimit'));
+        echo \core\output\html_writer::tag('td', devcode_format_memory_mb($testcase->memory_limit ?? 128000), array('class' => 'testcase-memorylimit'));
         echo \core\output\html_writer::end_tag('tr');
     }
     echo \core\output\html_writer::end_tag('tbody');

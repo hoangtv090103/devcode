@@ -35,6 +35,7 @@ define('DEVCODE_STATUS_MEMORY_LIMIT', 'memory_limit'); // Vượt quá bộ nh�
 define('DEVCODE_STATUS_COMPILE_ERROR', 'compile_error'); // Lỗi biên dịch
 define('DEVCODE_STATUS_RUNTIME_ERROR', 'runtime_error'); // Lỗi runtime
 define('DEVCODE_STATUS_ERROR', 'error');           // Lỗi khác
+define('DEVCODE_STATUS_TIMEOUT', 'timeout');       // Thêm hằng số timeout
 
 // Ngôn ngữ lập trình (Judge0 API)
 define('DEVCODE_LANG_C', 50);        // C (GCC 9.2.0)

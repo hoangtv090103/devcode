@@ -91,8 +91,8 @@ $string['testcaseinput'] = 'Input';
 $string['testcaseoutput'] = 'Test Case Output';
 $string['testcasepoints'] = 'Points';
 $string['testcasetimelimit'] = 'Time Limit (ms)';
-$string['testcasedescription'] = 'Test Case Description';
-$string['visibletostudent'] = 'Visible to Student';
+$string['testcasedescription'] = 'Description';
+$string['visibletostudent'] = 'Visible to student';
 $string['addmoretestcases'] = 'Add More Test Cases';
 $string['testcasepointserror'] = 'Points must be a positive number';
 $string['testcasetimelimiterror'] = 'Time limit must be a positive number';
@@ -358,10 +358,17 @@ $string['testcasefileprocessed'] = '{$a} test cases have been successfully impor
 $string['testcaseuploadexample'] = 'Example format: [{"input":"1 2","output":"3","points":10,"time_limit":3000,"description":"Addition test","visible_to_student":1}]';
 $string['testcaseuploadtip'] = 'Tip: You can first create test cases manually, then export them to see the expected format';
 $string['testcasedefaults'] = 'Default values: points = 10.0, time_limit = 3000ms, visible_to_student = false. Only input and output fields are required.';
-$string['testcaseexport'] = 'Export current test cases';
+$string['testcaseexport'] = 'Export Test Cases';
 $string['testcaseimport'] = 'Import test cases';
 $string['downloadasjson'] = 'Download as {$a} file';
 $string['downloadastxt'] = 'Download as {$a} file';
 $string['download'] = 'Download';
+
+$string['testcasevisible'] = 'Visible to student';
+$string['testcaseisexample'] = 'Is example';
+$string['testcasememorylimit'] = 'Memory Limit (MB)';
+$string['error_invalidmemorylimit'] = 'Invalid memory limit. Must be a positive number (MB).';
+$string['testcasememorylimiterror'] = 'Memory limit must be a positive number (MB).';
+$string['addtestcase'] = 'Add test case';
 
 ?>

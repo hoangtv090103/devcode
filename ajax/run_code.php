@@ -70,7 +70,10 @@ try {
 // Check login and permissions
 try {
     require_login($course, false, $cm);
-    $context = context_module::instance($cm->id);
+    $context = \core\context\module::instance($cm->id);
+    if (!$context) {
+        throw new \core\exception\moodle_exception('invalidcontext');
+    }
     require_capability('mod/devcode:submit', $context);
     debug_log('User authenticated and has required capabilities');
 } catch (Exception $e) {
@@ -117,7 +120,7 @@ if (!empty($input)) {
         'input' => $input,
         'output' => '',
         'time_limit' => isset($devcode->time_limit) ? ($devcode->time_limit / 1000) : 5,
-        'memory_limit' => isset($devcode->memory_limit) ? $devcode->memory_limit : 128000,
+        'memory_limit' => isset($devcode->memory_limit) ? (int)$devcode->memory_limit : 128000,
         'is_custom' => true
     ];
 } else {
@@ -131,7 +134,7 @@ if (!empty($input)) {
                 'input' => $tc->input,
                 'output' => $tc->output,
                 'time_limit' => isset($tc->time_limit) ? ($tc->time_limit / 1000) : 5,
-                'memory_limit' => isset($tc->memory_limit) ? $tc->memory_limit : 128000,
+                'memory_limit' => isset($tc->memory_limit) ? (int)$tc->memory_limit : 128000,
                 'is_example' => true,
                 'testcase_id' => $tc->id,
                 'description' => $tc->description
@@ -143,7 +146,7 @@ if (!empty($input)) {
             'input' => '',
             'output' => '',
             'time_limit' => isset($devcode->time_limit) ? ($devcode->time_limit / 1000) : 5,
-            'memory_limit' => isset($devcode->memory_limit) ? $devcode->memory_limit : 128000,
+            'memory_limit' => isset($devcode->memory_limit) ? (int)$devcode->memory_limit : 128000,
             'is_default' => true
         ];
     }
@@ -230,7 +233,7 @@ try {
             'language_id' => $devcode->language,
             'stdin' => $test_case['input'],
             'cpu_time_limit' => $test_case['time_limit'],
-            'memory_limit' => $test_case['memory_limit']
+            'memory_limit' => isset($test_case['memory_limit']) ? (int)$test_case['memory_limit'] : (isset($devcode->memory_limit) ? (int)$devcode->memory_limit : 128000)
         ];
         
         debug_log('Prepared Judge0 API data', [

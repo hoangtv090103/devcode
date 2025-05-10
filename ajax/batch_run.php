@@ -82,7 +82,10 @@ try {
 // Check login and permissions
 try {
     require_login($course, false, $cm);
-    $context = context_module::instance($cm->id);
+    $context = \core\context\module::instance($cm->id);
+    if (!$context) {
+        throw new \core\exception\moodle_exception('invalidcontext');
+    }
     require_capability('mod/devcode:submit', $context);
     debug_log('User authenticated and has required capabilities');
 } catch (Exception $e) {
@@ -124,7 +127,7 @@ foreach ($test_ids_array as $test_id) {
             'input' => $testcase->input,
             'output' => $testcase->output,
             'time_limit' => isset($testcase->time_limit) ? ($testcase->time_limit / 1000) : 5,
-            'memory_limit' => isset($testcase->memory_limit) ? $testcase->memory_limit : 128000,
+            'memory_limit' => isset($testcase->memory_limit) ? (int)$testcase->memory_limit : 128000,
             'points' => $testcase->points,
             'description' => $testcase->description,
             'visible' => $testcase->visible
