@@ -360,10 +360,51 @@ if ($mform->is_cancelled()) {
             exit;
         }
 
-        // Đọc nội dung file
+        // Đọc nội dung file và xử lý trước khi lưu vào CSDL
         $code_content = $file->get_content();
-
-        if (empty($code_content)) {
+        
+        // Kiểm tra xem tệp có phải là tệp văn bản hay không
+        $text_encodings = ['UTF-8', 'ASCII', 'ISO-8859-1', 'Windows-1252'];
+        $is_text = false;
+        
+        foreach ($text_encodings as $encoding) {
+            if (function_exists('mb_check_encoding') && mb_check_encoding($code_content, $encoding)) {
+                $is_text = true;
+                break;
+            }
+        }
+        
+        // Nếu không phải là tệp văn bản đơn giản
+        if (!$is_text) {
+            debugging('File might contain binary data, sanitizing...', DEBUG_DEVELOPER);
+            
+            // Thử đọc file như một tệp văn bản UTF-8
+            $sanitized_content = '';
+            
+            // Mở file từ bộ nhớ tạm
+            $temp_file = $file->copy_content_to_temp();
+            if ($temp_file && file_exists($temp_file)) {
+                $sanitized_content = file_get_contents($temp_file);
+                // Xóa tệp tạm
+                @unlink($temp_file);
+            }
+            
+            // Nếu vẫn không đọc được, chuyển đổi về chuỗi an toàn
+            if (empty($sanitized_content)) {
+                // Loại bỏ dữ liệu không phải là văn bản
+                $code_content = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $code_content);
+            } else {
+                $code_content = $sanitized_content;
+            }
+        }
+        
+        // Chuyển đổi sang UTF-8 nếu cần
+        if (function_exists('mb_convert_encoding')) {
+            $code_content = mb_convert_encoding($code_content, 'UTF-8', 'UTF-8, ASCII, ISO-8859-1, Windows-1252');
+        }
+        
+        // Kiểm tra nội dung sau khi xử lý
+        if (empty(trim($code_content))) {
             \core\notification::error(get_string('emptyfile', 'devcode'));
             redirect(new moodle_url('/mod/devcode/submit.php', array('id' => $cm->id)));
             exit;

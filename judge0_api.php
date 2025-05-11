@@ -27,28 +27,36 @@ function devcode_get_judge0_config()
 {
     global $CFG;
 
-    $api_url = null;
-    $api_key = null;
-    $timeout = null;
-
-    // First try to get settings from Moodle configuration if get_config function exists
-    if (function_exists('get_config')) {
-        $api_url = get_config('mod_devcode', 'judge0_api_url');
-        $api_key = get_config('mod_devcode', 'judge0_api_key');
-        $timeout = get_config('mod_devcode', 'judge0_timeout');
+    // Ensure config.php is loaded if $CFG->devcode is not set
+    if (!isset($CFG->devcode)) {
+        require_once(dirname(__FILE__) . '/config.php');
     }
 
-    // If settings are not available, fall back to defaults from config.php
+    // Default configuration values for Judge0
+    $defaults = [
+        'api_url' => 'https://judge0-ce.p.rapidapi.com',
+        'api_key' => null,
+        'timeout' => 30, // Default timeout for single API call
+        'max_wait' => 60, // Max wait time for polling results
+        'poll_interval' => 2, // Interval between polling requests
+        'wait_for_result' => false, // Whether submissions endpoint should wait for result
+        'default_time_limit' => 2, // Default time limit for execution in seconds
+        'default_memory_limit' => 128000, // Default memory limit in KB (128MB)
+    ];
+
+    // Merge with settings from config.php or Moodle admin settings
+    $config = array_merge($defaults, (array)($CFG->devcode['judge0'] ?? []));
+
+    // Construct the final configuration array for Judge0 API calls
     return [
-        'judge0_api_url' => !empty($api_url) ? $api_url : ($CFG->devcode['judge0']['api_url'] ?? 'https://judge0-ce.p.rapidapi.com'),
-        'judge0_api_key' => !empty($api_key) ? $api_key : ($CFG->devcode['judge0']['api_key'] ?? 'b7cb79bc20msh631e775baf24956p192284jsnc6b0aa67f960'),
-        'judge0_timeout' => !empty($timeout) ? $timeout : ($CFG->devcode['judge0']['timeout'] ?? 45),
-        'judge0_max_wait' => $CFG->devcode['judge0']['max_wait'] ?? 60,
-        'judge0_poll_interval' => $CFG->devcode['judge0']['poll_interval'] ?? 3,
-        'judge0_wait_for_result' => $CFG->devcode['judge0']['wait_for_result'] ?? false,
-        'judge0_headers' => is_callable($CFG->devcode['judge0']['headers'] ?? null) ?
-            call_user_func($CFG->devcode['judge0']['headers']) :
-            ['Content-Type: application/json', 'Accept: application/json']
+        'judge0_api_url' => rtrim($config['api_url'], '/'),
+        'judge0_api_key' => $config['api_key'],
+        'judge0_timeout' => (int)$config['timeout'],
+        'judge0_max_wait' => (int)$config['max_wait'],
+        'judge0_poll_interval' => (int)$config['poll_interval'],
+        'judge0_wait_for_result' => (bool)$config['wait_for_result'],
+        'judge0_default_time_limit' => (float)$config['default_time_limit'],
+        'judge0_default_memory_limit' => (int)$config['default_memory_limit'],
     ];
 }
 
@@ -80,35 +88,44 @@ function devcode_send_to_api($submission_data, $config)
 
     // Ensure source_code doesn't have encoding issues
     $source_code = $submission_data['source_code'];
-    
-    // Create a modified payload to handle different Judge0 implementations
-    $api_payload = [
+
+    // Prepare payload
+    // Explicitly define the payload to avoid sending unwanted data from $submission_data
+    $payload = [
         'source_code' => $source_code,
-        'language_id' => intval($submission_data['language_id']),
+        'language_id' => (int)$submission_data['language_id'],
     ];
-    
-    // Add optional fields if they exist
+
     if (isset($submission_data['stdin'])) {
-        $api_payload['stdin'] = $submission_data['stdin'];
+        $payload['stdin'] = $submission_data['stdin'];
     }
-    
     if (isset($submission_data['expected_output'])) {
-        $api_payload['expected_output'] = $submission_data['expected_output'];
+        $payload['expected_output'] = $submission_data['expected_output'];
     }
-    
     if (isset($submission_data['cpu_time_limit'])) {
-        $api_payload['cpu_time_limit'] = $submission_data['cpu_time_limit'];
+        $payload['cpu_time_limit'] = (float)$submission_data['cpu_time_limit'];
     }
-    
     if (isset($submission_data['memory_limit'])) {
-        $api_payload['memory_limit'] = $submission_data['memory_limit'];
+        $payload['memory_limit'] = (int)$submission_data['memory_limit']; // Added memory_limit
     }
+    if (isset($submission_data['compiler_options'])) {
+        $payload['compiler_options'] = $submission_data['compiler_options'];
+    }
+    if (isset($submission_data['command_line_arguments'])) {
+        $payload['command_line_arguments'] = $submission_data['command_line_arguments'];
+    }
+    // Add wall_time_limit if needed, Judge0 default is 5s. We can make this configurable.
+    // $payload['wall_time_limit'] = $submission_data['wall_time_limit'] ?? 10; 
+
+    // If wait_for_result is enabled in config, use submissions?base64_encoded=false&wait=true
+    $waitparam = $config['judge0_wait_for_result'] ? '&wait=true' : '';
+    $url = $config['judge0_api_url'] . '/submissions?base64_encoded=false' . $waitparam;
 
     // Set the proper headers based on API type
     $headers = [];
     $is_local = (strpos($config['judge0_api_url'], 'localhost') !== false || strpos($config['judge0_api_url'], '127.0.0.1') !== false);
     $is_rapidapi = (strpos($config['judge0_api_url'], 'rapidapi.com') !== false);
-    
+
     if ($is_rapidapi) {
         // RapidAPI format - using lowercase header names as shown in examples
         $headers = [
@@ -134,38 +151,11 @@ function devcode_send_to_api($submission_data, $config)
         $headers = ['Content-Type: application/json', 'Accept: application/json'];
     }
 
-    $wait_param = isset($config['judge0_wait_for_result']) && $config['judge0_wait_for_result'] ? 'true' : 'false';
-    
-    // Set up URL based on API type
-    if ($is_rapidapi) {
-        // RapidAPI format with fields=* parameter
-        $url = $config['judge0_api_url'] . '/submissions?base64_encoded=true&wait=' . $wait_param . '&fields=*';
-    } else if ($is_local) {
-        // For local Judge0, we'll use the token endpoint instead of direct wait parameter
-        $url = $config['judge0_api_url'] . '/submissions';
-    } else {
-        // Default format
-        $url = $config['judge0_api_url'] . '/submissions?base64_encoded=true&wait=' . $wait_param;
-    }
-
-    // If base64_encoded=true, encode content before sending
-    if (strpos($url, 'base64_encoded=true') !== false) {
-        if (isset($api_payload['source_code'])) {
-            $api_payload['source_code'] = base64_encode($api_payload['source_code']);
-        }
-        if (isset($api_payload['stdin'])) {
-            $api_payload['stdin'] = base64_encode($api_payload['stdin']);
-        }
-        if (isset($api_payload['expected_output'])) {
-            $api_payload['expected_output'] = base64_encode($api_payload['expected_output']);
-        }
-    }
-
     debugging('Gửi dữ liệu đến Judge0 API: ' . $url, DEBUG_DEVELOPER);
     debugging('Headers: ' . json_encode($headers), DEBUG_DEVELOPER);
 
     // Tạo JSON payload và ghi log để debug
-    $json_payload = json_encode($api_payload);
+    $json_payload = json_encode($payload);
     debugging('JSON Payload: ' . $json_payload, DEBUG_DEVELOPER);
 
     $ch = curl_init($url);
@@ -237,7 +227,7 @@ function devcode_send_to_api($submission_data, $config)
         if (isset($data['submission']) && isset($data['submission']['token'])) {
             return $data['submission'];
         }
-        
+
         debugging('Token không tìm thấy trong phản hồi: ' . $response, DEBUG_DEVELOPER);
         return [
             'error' => true,
@@ -251,10 +241,12 @@ function devcode_send_to_api($submission_data, $config)
     if ($is_local && isset($data['token'])) {
         $token = $data['token'];
         $poll_result = devcode_poll_submission($token, $config);
-        
+
         // Return only if we got error or valid results
-        if (isset($poll_result['error']) || 
-            (isset($poll_result['result']) && !empty($poll_result['result']))) {
+        if (
+            isset($poll_result['error']) ||
+            (isset($poll_result['result']) && !empty($poll_result['result']))
+        ) {
             return $poll_result;
         }
     }
@@ -271,7 +263,7 @@ function devcode_poll_submission($token, $config = null)
             'error_code' => DEVCODE_JUDGE0_ERROR_MISSING_PARAM
         ];
     }
-    
+
     if (strpos($token, 'mock_') === 0) {
         debugging('Sử dụng phản hồi giả để thăm dò với token: ' . $token, DEBUG_DEVELOPER);
         return [
@@ -285,15 +277,15 @@ function devcode_poll_submission($token, $config = null)
             ]
         ];
     }
-    
+
     // Get configuration
     if ($config === null) {
         $config = devcode_get_judge0_config();
     }
-    
+
     $url = rtrim($config['judge0_api_url'], '/') . '/submissions/' . $token;
     $url .= '?base64_encoded=true&fields=*';
-    
+
     debugging('Polling URL: ' . $url, DEBUG_DEVELOPER);
 
     // Prepare headers based on configuration
@@ -303,13 +295,13 @@ function devcode_poll_submission($token, $config = null)
             $headers[] = "$key: $value";
         }
     }
-    
+
     // Add the API key if provided
     if (!empty($config['judge0_api_key'])) {
         $headers[] = 'x-rapidapi-host: judge0-ce.p.rapidapi.com';
         $headers[] = 'x-rapidapi-key: ' . $config['judge0_api_key'];
     }
-    
+
     debugging('Poll Headers: ' . json_encode($headers), DEBUG_DEVELOPER);
 
     $start = time();
@@ -319,7 +311,7 @@ function devcode_poll_submission($token, $config = null)
     $max_retries = 3;
     $retry_delay = 2;
     $poll_result = null;
-    
+
     do {
         if (time() - $start > $max_wait) {
             return [
@@ -328,7 +320,7 @@ function devcode_poll_submission($token, $config = null)
                 'error_code' => DEVCODE_JUDGE0_ERROR_TIMEOUT
             ];
         }
-        
+
         try {
             $ch = curl_init($url);
             if (!empty($headers)) {
@@ -337,13 +329,13 @@ function devcode_poll_submission($token, $config = null)
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 30);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            
+
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            
+
             // Log the raw response for debugging
             debugging('Poll raw response: ' . $response, DEBUG_DEVELOPER);
-            
+
             if (curl_errno($ch)) {
                 $error = curl_error($ch);
                 curl_close($ch);
@@ -359,9 +351,9 @@ function devcode_poll_submission($token, $config = null)
                 ];
             }
             curl_close($ch);
-            
+
             debugging('Poll HTTP Code: ' . $http_code, DEBUG_DEVELOPER);
-            
+
             if ($http_code < 200 || $http_code >= 300) {
                 if ($http_code == 401) {
                     return [
@@ -387,7 +379,7 @@ function devcode_poll_submission($token, $config = null)
                     'error_code' => DEVCODE_JUDGE0_ERROR_HTTP
                 ];
             }
-            
+
             // Improve JSON parsing with better error handling for truncated responses
             if (empty($response)) {
                 if (++$retries <= $max_retries) {
@@ -401,7 +393,7 @@ function devcode_poll_submission($token, $config = null)
                     'error_code' => DEVCODE_JUDGE0_ERROR_EMPTY_RESPONSE
                 ];
             }
-            
+
             // Check if the response looks like valid JSON
             if (!preg_match('/^\s*[\{\[]/', $response) || !preg_match('/[\}\]]\s*$/', $response)) {
                 if (++$retries <= $max_retries) {
@@ -415,7 +407,7 @@ function devcode_poll_submission($token, $config = null)
                     'error_code' => DEVCODE_JUDGE0_ERROR_INVALID_JSON
                 ];
             }
-            
+
             $poll_result = json_decode($response, true);
             if ($poll_result === null) {
                 if (++$retries <= $max_retries) {
@@ -429,30 +421,30 @@ function devcode_poll_submission($token, $config = null)
                     'error_code' => DEVCODE_JUDGE0_ERROR_RESPONSE
                 ];
             }
-            
+
             // If we're using base64_encoded=true, decode the fields
             if (strpos($url, 'base64_encoded=true') !== false && !empty($poll_result)) {
                 // Decode stdout if present
                 if (isset($poll_result['stdout']) && !empty($poll_result['stdout'])) {
                     $poll_result['stdout'] = base64_decode($poll_result['stdout']);
                 }
-                
+
                 // Decode stderr if present
                 if (isset($poll_result['stderr']) && !empty($poll_result['stderr'])) {
                     $poll_result['stderr'] = base64_decode($poll_result['stderr']);
                 }
-                
+
                 // Decode compile_output if present
                 if (isset($poll_result['compile_output']) && !empty($poll_result['compile_output'])) {
                     $poll_result['compile_output'] = base64_decode($poll_result['compile_output']);
                 }
-                
+
                 // Decode message if present
                 if (isset($poll_result['message']) && !empty($poll_result['message'])) {
                     $poll_result['message'] = base64_decode($poll_result['message']);
                 }
             }
-            
+
             debugging('Poll result parsed: ' . json_encode($poll_result), DEBUG_DEVELOPER);
             break;
         } catch (Exception $e) {
@@ -468,7 +460,7 @@ function devcode_poll_submission($token, $config = null)
             ];
         }
     } while ($retries <= $max_retries);
-    
+
     if ($poll_result === null) {
         return [
             'error' => true,
@@ -476,11 +468,11 @@ function devcode_poll_submission($token, $config = null)
             'error_code' => DEVCODE_JUDGE0_ERROR_MAX_RETRIES
         ];
     }
-    
+
     // Check status to see if the submission is complete
     if (isset($poll_result['status']) && isset($poll_result['status']['id'])) {
         $status_id = (int)$poll_result['status']['id'];
-        
+
         // Process ID 1 and 2 are still in queue or processing
         if ($status_id <= 2) {
             // Wait and then poll again later
@@ -492,7 +484,7 @@ function devcode_poll_submission($token, $config = null)
             ];
         }
     }
-    
+
     return [
         'token' => $token,
         'result' => $poll_result
@@ -539,7 +531,7 @@ function devcode_get_languages($config = null)
     $headers = [];
     $is_local = (strpos($config['judge0_api_url'], 'localhost') !== false || strpos($config['judge0_api_url'], '127.0.0.1') !== false);
     $is_rapidapi = (strpos($config['judge0_api_url'], 'rapidapi.com') !== false);
-    
+
     if ($is_rapidapi) {
         // RapidAPI format - using lowercase header names as shown in examples
         $headers = [
@@ -778,7 +770,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
 
                 // Get submission status.
                 $poll_result = devcode_poll_submission($token, $config);
-                
+
                 // Check for errors during polling
                 if (isset($poll_result['error'])) {
                     debugging('API polling error: ' . $poll_result['message'], DEBUG_DEVELOPER);
@@ -824,7 +816,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
         } else if (isset($result['result']) && is_array($result['result'])) {
             // Handle wrapped result format
             $actual_result = $result['result'];
-            
+
             // Extract time and memory info if available
             if (isset($actual_result['time'])) {
                 $test_result->time = floatval($actual_result['time']) * 1000; // Convert to ms
@@ -832,7 +824,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
             if (isset($actual_result['memory'])) {
                 $test_result->memory = floatval($actual_result['memory']);
             }
-            
+
             if (!empty($actual_result['stderr'])) {
                 $test_result->status = DEVCODE_STATUS_ERROR;
                 $test_result->message = $actual_result['stderr'];
@@ -847,7 +839,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
                 } else {
                     // Status is "Accepted", now compare the actual output with expected output
                     $test_result->actual = $actual_result['stdout'] ?? '';
-                    
+
                     // Compare outputs
                     if (devcode_compare_outputs($test_result->expected, $test_result->actual)) {
                         $test_result->status = DEVCODE_STATUS_ACCEPTED;
@@ -861,7 +853,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
             } else {
                 // No status available, compare outputs directly
                 $test_result->actual = $actual_result['stdout'] ?? '';
-                
+
                 if (devcode_compare_outputs($test_result->expected, $test_result->actual)) {
                     $test_result->status = DEVCODE_STATUS_ACCEPTED;
                     $test_result->message = 'Correct output';
@@ -880,7 +872,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
             if (isset($result['memory'])) {
                 $test_result->memory = floatval($result['memory']);
             }
-            
+
             if (!empty($result['stderr'])) {
                 $test_result->status = DEVCODE_STATUS_ERROR;
                 $test_result->message = $result['stderr'];
@@ -895,7 +887,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
                 } else {
                     // Status is "Accepted", now compare the actual output with expected output
                     $test_result->actual = $result['stdout'] ?? '';
-                    
+
                     if (devcode_compare_outputs($test_result->expected, $test_result->actual)) {
                         $test_result->status = DEVCODE_STATUS_ACCEPTED;
                         $test_result->message = 'Correct output';
@@ -908,7 +900,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
             } else {
                 // No status available, compare outputs directly
                 $test_result->actual = $result['stdout'] ?? '';
-                
+
                 if (devcode_compare_outputs($test_result->expected, $test_result->actual)) {
                     $test_result->status = DEVCODE_STATUS_ACCEPTED;
                     $test_result->message = 'Correct output';
@@ -929,8 +921,11 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
         $submission->message = get_string('allteststpassed', 'devcode');
     } else if ($submission->tests_passed > 0) {
         $submission->status = DEVCODE_STATUS_PARTIALLY_ACCEPTED;
-        $submission->message = get_string('someteststpassed', 'devcode', 
-            ['passed' => $submission->tests_passed, 'total' => $submission->tests_total]);
+        $submission->message = get_string(
+            'someteststpassed',
+            'devcode',
+            ['passed' => $submission->tests_passed, 'total' => $submission->tests_total]
+        );
     } else {
         $submission->status = DEVCODE_STATUS_WRONG_ANSWER;
         $submission->message = get_string('noteststpassed', 'devcode');
@@ -939,13 +934,13 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
     // Calculate total points and earned points from test cases
     $total_points = 0;
     $earned_points = 0;
-    
+
     // Calculate total available points
     foreach ($test_results as $test_result) {
         $testcase = $DB->get_record('devcode_testcases', array('id' => $test_result->test_id), 'points');
         if ($testcase) {
             $total_points += $testcase->points;
-            
+
             // Add points if test passed
             if ($test_result->status === DEVCODE_STATUS_ACCEPTED) {
                 $earned_points += $testcase->points;
@@ -955,7 +950,7 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
             }
         }
     }
-    
+
     // Set grade to earned points
     $submission->grade = $earned_points;
     $submission->test_results = json_encode($test_results);
@@ -970,30 +965,31 @@ function devcode_grade_with_judge0($submission, $devcode, $modulecontext)
  * @param array $config Cấu hình Judge0 API (nếu null, sẽ lấy từ cài đặt)
  * @return array Mảng chứa kết quả từ API, bao gồm tokens hoặc error message
  */
-function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
+function devcode_send_batch_to_judge0($batch_submissions, $config = null)
+{
     if (empty($config)) {
         $config = devcode_get_judge0_config();
     }
-    
+
     if (empty($batch_submissions) || !is_array($batch_submissions)) {
         return [
             'error' => true,
             'message' => 'Dữ liệu batch submissions không hợp lệ'
         ];
     }
-    
+
     // Chuẩn bị dữ liệu cho API
     $submissions = [];
     foreach ($batch_submissions as $submission) {
         if (empty($submission['source_code']) || empty($submission['language_id'])) {
             continue;
         }
-        
+
         $sub = [
             'language_id' => intval($submission['language_id']),
             'source_code' => $submission['source_code']
         ];
-        
+
         // Thêm các trường tùy chọn nếu có
         if (!empty($submission['stdin'])) {
             $sub['stdin'] = $submission['stdin'];
@@ -1007,29 +1003,29 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
         if (!empty($submission['memory_limit'])) {
             $sub['memory_limit'] = $submission['memory_limit'];
         }
-        
+
         $submissions[] = $sub;
     }
-    
+
     if (empty($submissions)) {
         return [
             'error' => true,
             'message' => 'Không có dữ liệu hợp lệ để gửi trong batch'
         ];
     }
-    
+
     $api_payload = ['submissions' => $submissions];
-    
+
     // Tạo URL và headers dựa trên cấu hình
     $is_rapidapi = (strpos($config['judge0_api_url'], 'rapidapi.com') !== false);
     $is_local = (strpos($config['judge0_api_url'], 'localhost') !== false || strpos($config['judge0_api_url'], '127.0.0.1') !== false);
-    
+
     // Chuẩn bị headers
     $headers = [];
     if ($is_rapidapi) {
         $headers = [
             "Content-Type: application/json",
-            "x-rapidapi-host: judge0-ce.p.rapidapi.com", 
+            "x-rapidapi-host: judge0-ce.p.rapidapi.com",
             "x-rapidapi-key: " . $config['judge0_api_key']
         ];
     } else if ($is_local) {
@@ -1041,15 +1037,15 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
             'X-API-Key: ' . $config['judge0_api_key']
         ];
     }
-    
+
     // Tạo URL
     $base_url = rtrim($config['judge0_api_url'], '/');
     $batch_endpoint = "/submissions/batch";
     $url = $base_url . $batch_endpoint . "?base64_encoded=true";
-    
+
     // Thực hiện curl request
     $json_payload = json_encode($api_payload);
-    
+
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_HTTPHEADER => $headers,
@@ -1064,14 +1060,14 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false
     ]);
-    
+
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curl_errno = curl_errno($ch);
     $curl_error = curl_error($ch);
-    
+
     curl_close($ch);
-    
+
     if ($curl_errno) {
         return [
             'error' => true,
@@ -1079,7 +1075,7 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
             'response' => $response
         ];
     }
-    
+
     if ($http_code >= 400) {
         return [
             'error' => true,
@@ -1087,9 +1083,9 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
             'response' => $response
         ];
     }
-    
+
     $data = json_decode($response, true);
-    
+
     if (json_last_error() !== JSON_ERROR_NONE) {
         return [
             'error' => true,
@@ -1097,7 +1093,7 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
             'response' => $response
         ];
     }
-    
+
     // Decode base64 fields in submissions if needed
     if (strpos($url, 'base64_encoded=true') !== false && !empty($data['submissions'])) {
         foreach ($data['submissions'] as &$submission) {
@@ -1105,24 +1101,24 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
             if (isset($submission['stdout']) && !empty($submission['stdout'])) {
                 $submission['stdout'] = base64_decode($submission['stdout']);
             }
-            
+
             // Decode stderr if present
             if (isset($submission['stderr']) && !empty($submission['stderr'])) {
                 $submission['stderr'] = base64_decode($submission['stderr']);
             }
-            
+
             // Decode compile_output if present
             if (isset($submission['compile_output']) && !empty($submission['compile_output'])) {
                 $submission['compile_output'] = base64_decode($submission['compile_output']);
             }
-            
+
             // Decode message if present
             if (isset($submission['message']) && !empty($submission['message'])) {
                 $submission['message'] = base64_decode($submission['message']);
             }
         }
     }
-    
+
     return $data;
 }
 
@@ -1133,30 +1129,31 @@ function devcode_send_batch_to_judge0($batch_submissions, $config = null) {
  * @param array $config Cấu hình Judge0 API
  * @return array Mảng chứa kết quả của các submissions
  */
-function devcode_get_batch_results($tokens, $config = null) {
+function devcode_get_batch_results($tokens, $config = null)
+{
     if (empty($config)) {
         $config = devcode_get_judge0_config();
     }
-    
+
     if (empty($tokens) || !is_array($tokens)) {
         return [
             'error' => true,
             'message' => 'Tokens không hợp lệ'
         ];
     }
-    
+
     // Nối các tokens bằng dấu phẩy
     $tokens_param = implode(',', $tokens);
-    
+
     // Tạo URL và headers dựa trên cấu hình
     $is_rapidapi = (strpos($config['judge0_api_url'], 'rapidapi.com') !== false);
     $is_local = (strpos($config['judge0_api_url'], 'localhost') !== false || strpos($config['judge0_api_url'], '127.0.0.1') !== false);
-    
+
     // Chuẩn bị headers
     $headers = [];
     if ($is_rapidapi) {
         $headers = [
-            "x-rapidapi-host: judge0-ce.p.rapidapi.com", 
+            "x-rapidapi-host: judge0-ce.p.rapidapi.com",
             "x-rapidapi-key: " . $config['judge0_api_key']
         ];
     } else if ($is_local) {
@@ -1167,12 +1164,12 @@ function devcode_get_batch_results($tokens, $config = null) {
             'X-API-Key: ' . $config['judge0_api_key']
         ];
     }
-    
+
     // Tạo URL
     $base_url = rtrim($config['judge0_api_url'], '/');
     $batch_endpoint = "/submissions/batch";
     $url = $base_url . $batch_endpoint . "?tokens=" . urlencode($tokens_param) . "&base64_encoded=true&fields=*";
-    
+
     // Thực hiện curl request
     $ch = curl_init($url);
     curl_setopt_array($ch, [
@@ -1186,14 +1183,14 @@ function devcode_get_batch_results($tokens, $config = null) {
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false
     ]);
-    
+
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curl_errno = curl_errno($ch);
     $curl_error = curl_error($ch);
-    
+
     curl_close($ch);
-    
+
     if ($curl_errno) {
         return [
             'error' => true,
@@ -1201,7 +1198,7 @@ function devcode_get_batch_results($tokens, $config = null) {
             'response' => $response
         ];
     }
-    
+
     if ($http_code >= 400) {
         return [
             'error' => true,
@@ -1209,9 +1206,9 @@ function devcode_get_batch_results($tokens, $config = null) {
             'response' => $response
         ];
     }
-    
+
     $data = json_decode($response, true);
-    
+
     if (json_last_error() !== JSON_ERROR_NONE) {
         return [
             'error' => true,
@@ -1219,7 +1216,7 @@ function devcode_get_batch_results($tokens, $config = null) {
             'response' => $response
         ];
     }
-    
+
     // Decode base64 fields in submissions if needed
     if (strpos($url, 'base64_encoded=true') !== false && !empty($data['submissions'])) {
         foreach ($data['submissions'] as &$submission) {
@@ -1227,24 +1224,24 @@ function devcode_get_batch_results($tokens, $config = null) {
             if (isset($submission['stdout']) && !empty($submission['stdout'])) {
                 $submission['stdout'] = base64_decode($submission['stdout']);
             }
-            
+
             // Decode stderr if present
             if (isset($submission['stderr']) && !empty($submission['stderr'])) {
                 $submission['stderr'] = base64_decode($submission['stderr']);
             }
-            
+
             // Decode compile_output if present
             if (isset($submission['compile_output']) && !empty($submission['compile_output'])) {
                 $submission['compile_output'] = base64_decode($submission['compile_output']);
             }
-            
+
             // Decode message if present
             if (isset($submission['message']) && !empty($submission['message'])) {
                 $submission['message'] = base64_decode($submission['message']);
             }
         }
     }
-    
+
     return $data;
 }
 
@@ -1257,40 +1254,42 @@ function devcode_get_batch_results($tokens, $config = null) {
  * @param array $config Cấu hình Judge0 API
  * @return array Kết quả của tất cả các test cases
  */
-function devcode_run_code_with_batch($source_code, $language_id, $test_cases, $config = null) {
+function devcode_run_code_with_batch($source_code, $language_id, $test_cases, $config = null)
+{
     if (empty($config)) {
         $config = devcode_get_judge0_config();
     }
-    
+
     if (empty($source_code) || empty($language_id) || empty($test_cases)) {
         return [
             'error' => true,
             'message' => 'Thiếu thông tin cần thiết để chạy code'
         ];
     }
-    
+
     // Chuẩn bị batch submissions
     $batch_submissions = [];
     foreach ($test_cases as $test_case) {
-        $sub = [
-            'language_id' => $language_id,
+        $submission_item = [
             'source_code' => $source_code,
-            'stdin' => $test_case['input'] ?? '',
-            'expected_output' => $test_case['output'] ?? '',
-            'cpu_time_limit' => $test_case['time_limit'] ?? 2,
-            'memory_limit' => $test_case['memory_limit'] ?? 128000
+            'language_id' => (int)$language_id,
+            'stdin' => $test_case['input'],
+            'expected_output' => $test_case['output'] ?? null,
+            'cpu_time_limit' => $test_case['time_limit'] ?? $config['judge0_default_time_limit'],
+            'memory_limit' => isset($test_case['memory_limit']) ? (int)$test_case['memory_limit'] : $config['judge0_default_memory_limit'],
+            // 'wall_time_limit' => $test_case['wall_time_limit'] ?? ($config['judge0_default_wall_time_limit'] ?? 10), // Optional: if we want to control wall time
         ];
-        
-        $batch_submissions[] = $sub;
+
+        $batch_submissions[] = $submission_item;
     }
-    
+
     // Gửi batch submissions
     $batch_response = devcode_send_batch_to_judge0($batch_submissions, $config);
-    
+
     if (isset($batch_response['error']) && $batch_response['error']) {
         return $batch_response;
     }
-    
+
     // Lấy tokens
     $tokens = [];
     if (!empty($batch_response['submissions'])) {
@@ -1300,30 +1299,30 @@ function devcode_run_code_with_batch($source_code, $language_id, $test_cases, $c
             }
         }
     }
-    
+
     if (empty($tokens)) {
         return [
             'error' => true,
             'message' => 'Không nhận được tokens từ batch submissions'
         ];
     }
-    
+
     // Đợi và lấy kết quả
     $max_attempts = 10;
     $attempt = 0;
     $wait_time = 1; // Bắt đầu với 1 giây
-    
+
     while ($attempt < $max_attempts) {
         sleep($wait_time);
-        
+
         $results = devcode_get_batch_results($tokens, $config);
-        
+
         if (isset($results['error']) && $results['error']) {
             $attempt++;
             $wait_time *= 2; // Exponential backoff
             continue;
         }
-        
+
         // Kiểm tra xem tất cả các submissions đã hoàn thành chưa
         $all_complete = true;
         if (!empty($results['submissions'])) {
@@ -1335,7 +1334,7 @@ function devcode_run_code_with_batch($source_code, $language_id, $test_cases, $c
                 }
             }
         }
-        
+
         if ($all_complete) {
             // Xử lý kết quả và trả về
             $processed_results = [];
@@ -1356,19 +1355,39 @@ function devcode_run_code_with_batch($source_code, $language_id, $test_cases, $c
                     ];
                 }
             }
-            
+
             return [
                 'success' => true,
                 'results' => $processed_results
             ];
         }
-        
+
         $attempt++;
         $wait_time *= 2; // Tăng thời gian chờ theo luỹ thừa
     }
-    
+
     return [
         'error' => true,
         'message' => 'Hết thời gian chờ kết quả từ batch submissions'
     ];
+}
+
+/**
+ * Helper function to convert memory in KB to MB for display
+ * 
+ * @param int $memory_kb Memory in KB
+ * @param bool $format Whether to format with "MB" suffix
+ * @return string|float Memory in MB (formatted with "MB" suffix if $format is true)
+ */
+function devcode_format_memory_mb($memory_kb, $format = true) {
+    // Check if memory is provided and is a number
+    if (!isset($memory_kb) || !is_numeric($memory_kb)) {
+        return $format ? '0 MB' : 0;
+    }
+    
+    // Convert KB to MB (divide by 1024)
+    $memory_mb = round($memory_kb / 1024, 2);
+    
+    // Return formatted string or just the value
+    return $format ? $memory_mb . ' MB' : $memory_mb;
 }

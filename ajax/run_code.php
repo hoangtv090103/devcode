@@ -70,7 +70,10 @@ try {
 // Check login and permissions
 try {
     require_login($course, false, $cm);
-    $context = context_module::instance($cm->id);
+    $context = \core\context\module::instance($cm->id);
+    if (!$context) {
+        throw new \core\exception\moodle_exception('invalidcontext');
+    }
     require_capability('mod/devcode:submit', $context);
     debug_log('User authenticated and has required capabilities');
 } catch (Exception $e) {
@@ -117,7 +120,7 @@ if (!empty($input)) {
         'input' => $input,
         'output' => '',
         'time_limit' => isset($devcode->time_limit) ? ($devcode->time_limit / 1000) : 5,
-        'memory_limit' => isset($devcode->memory_limit) ? $devcode->memory_limit : 128000,
+        'memory_limit' => isset($devcode->memory_limit) ? (int)$devcode->memory_limit : 128000,
         'is_custom' => true
     ];
 } else {
@@ -131,7 +134,7 @@ if (!empty($input)) {
                 'input' => $tc->input,
                 'output' => $tc->output,
                 'time_limit' => isset($tc->time_limit) ? ($tc->time_limit / 1000) : 5,
-                'memory_limit' => isset($tc->memory_limit) ? $tc->memory_limit : 128000,
+                'memory_limit' => isset($tc->memory_limit) ? (int)$tc->memory_limit : 128000,
                 'is_example' => true,
                 'testcase_id' => $tc->id,
                 'description' => $tc->description
@@ -143,7 +146,7 @@ if (!empty($input)) {
             'input' => '',
             'output' => '',
             'time_limit' => isset($devcode->time_limit) ? ($devcode->time_limit / 1000) : 5,
-            'memory_limit' => isset($devcode->memory_limit) ? $devcode->memory_limit : 128000,
+            'memory_limit' => isset($devcode->memory_limit) ? (int)$devcode->memory_limit : 128000,
             'is_default' => true
         ];
     }
@@ -216,6 +219,7 @@ try {
             $response['debug'] = $debug_info;
         }
         
+        $response = sanitize_for_json($response);
         echo json_encode($response);
     } else {
         // Sử dụng single submission nếu chỉ có một test case hoặc không dùng batch
@@ -230,7 +234,7 @@ try {
             'language_id' => $devcode->language,
             'stdin' => $test_case['input'],
             'cpu_time_limit' => $test_case['time_limit'],
-            'memory_limit' => $test_case['memory_limit']
+            'memory_limit' => isset($test_case['memory_limit']) ? (int)$test_case['memory_limit'] : (isset($devcode->memory_limit) ? (int)$devcode->memory_limit : 128000)
         ];
         
         debug_log('Prepared Judge0 API data', [
@@ -350,13 +354,47 @@ try {
         }
 
         // Send formatted response
-        echo json_encode($formatted_result);
+        $response = sanitize_for_json($formatted_result);
+        echo json_encode($response);
     }
 } catch (Exception $e) {
     debug_log('Exception caught', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], true);
-    echo json_encode([
+    $error_response = [
         'status' => 'error',
         'message' => 'Runtime error: ' . $e->getMessage(),
         'debug' => $debug_info
-    ]);
+    ];
+    $error_response = sanitize_for_json($error_response);
+    echo json_encode($error_response);
+}
+
+/**
+ * Sanitize data for JSON encoding, removing problematic binary data
+ * @param mixed $data Data to sanitize
+ * @return mixed Sanitized data
+ */
+function sanitize_for_json($data) {
+    if (is_string($data)) {
+        // Check if the string is valid UTF-8
+        if (!mb_check_encoding($data, 'UTF-8')) {
+            // Try to convert to UTF-8
+            $data = mb_convert_encoding($data, 'UTF-8', 'UTF-8, ASCII, ISO-8859-1');
+        }
+        // Remove any non-printable characters
+        return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $data);
+    } else if (is_array($data)) {
+        // Recursively sanitize array values
+        foreach ($data as $key => $value) {
+            $data[$key] = sanitize_for_json($value);
+        }
+    } else if (is_object($data) && !($data instanceof \stdClass)) {
+        // Convert object to array and sanitize
+        $data = (array)$data;
+        foreach ($data as $key => $value) {
+            $data[$key] = sanitize_for_json($value);
+        }
+        $data = (object)$data;
+    }
+    
+    return $data;
 } 

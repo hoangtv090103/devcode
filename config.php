@@ -27,7 +27,8 @@ $CFG->devcode = [
         'timeout' => 30,
         'max_wait' => 60,
         'poll_interval' => 3,
-        'wait_for_result' => false
+        'wait_for_result' => false,
+        'default_memory_limit' => 128000 // Default memory limit in KB (128MB)
     ],
     
     // Dolos plagiarism detection configuration

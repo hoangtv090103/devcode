@@ -114,5 +114,38 @@ function xmldb_devcode_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 20250409002, 'devcode');
     }
 
+    if ($oldversion < 2024071500) {
+        // Define table devcode_testcases.
+        $table = new xmldb_table('devcode_testcases');
+        $field = new xmldb_field('memory_limit', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, false, '128000', 'time_limit');
+
+        // Conditionally launch add field memory_limit.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Devcode savepoint reached.
+        upgrade_mod_savepoint(true, 2024071500, 'devcode');
+    }
+
+    // Upgrade for handling binary data in code submissions
+    if ($oldversion < 2025032102) {
+        
+        // Define field to be modified
+        $table = new xmldb_table('devcode_submissions');
+        $field = new xmldb_field('code', XMLDB_TYPE_TEXT, 'big', null, XMLDB_NOTNULL, null, null, 'userid');
+        
+        // Launch change of type for field code
+        $dbman->change_field_type($table, $field);
+        
+        // Set the binary attribute for MySQL
+        if ($DB->get_dbfamily() === 'mysql') {
+            $DB->execute("ALTER TABLE {devcode_submissions} MODIFY code LONGTEXT CHARACTER SET binary");
+        }
+        
+        // Savepoint reached
+        upgrade_mod_savepoint(true, 2025032102, 'devcode');
+    }
+
     return true;
 } 

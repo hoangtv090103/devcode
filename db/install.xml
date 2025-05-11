@@ -30,18 +30,21 @@
             </KEYS>
         </TABLE>
         
-        <TABLE NAME="devcode_testcases" COMMENT="Stores test cases for code assignments">
+        <TABLE NAME="devcode_testcases" COMMENT="Stores test cases for DevCode activities">
             <FIELDS>
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-                <FIELD NAME="devcodeid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
-                <FIELD NAME="input" TYPE="text" LENGTH="medium" NOTNULL="false" SEQUENCE="false"/>
-                <FIELD NAME="output" TYPE="text" LENGTH="medium" NOTNULL="true" SEQUENCE="false"/>
-                <FIELD NAME="points" TYPE="float" LENGTH="10" NOTNULL="true" DEFAULT="10.0" SEQUENCE="false"/>
-                <FIELD NAME="time_limit" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="3000" SEQUENCE="false"/>
-                <FIELD NAME="visible_to_student" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether this test case is visible to students"/>
-                <FIELD NAME="description" TYPE="text" LENGTH="small" NOTNULL="false" SEQUENCE="false" COMMENT="Description of what the test case is checking"/>
-                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
-                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="devcodeid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="ID of the devcode activity"/>
+                <FIELD NAME="input" TYPE="text" NOTNULL="false" COMMENT="Input for the test case"/>
+                <FIELD NAME="output" TYPE="text" NOTNULL="false" COMMENT="Expected output for the test case"/>
+                <FIELD NAME="points" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="1" COMMENT="Points awarded for passing this test case"/>
+                <FIELD NAME="time_limit" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="2000" COMMENT="Time limit in milliseconds for this test case"/>
+                <FIELD NAME="memory_limit" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="128000" COMMENT="Memory limit in Kilobytes for this test case"/>
+                <FIELD NAME="description" TYPE="text" NOTNULL="false" COMMENT="Description of the test case"/>
+                <FIELD NAME="visible_to_student" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" COMMENT="Whether the test case input/output is visible to students"/>
+                <FIELD NAME="is_example" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" COMMENT="Is this an example test case shown to students?"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+                <FIELD NAME="visible" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
@@ -54,7 +57,7 @@
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
                 <FIELD NAME="devcodeid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
-                <FIELD NAME="code" TYPE="text" LENGTH="medium" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="code" TYPE="text" LENGTH="big" NOTNULL="true" SEQUENCE="false" COMMENT="Source code submitted (can be binary)"/>
                 <FIELD NAME="language" TYPE="char" LENGTH="50" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="submitted" SEQUENCE="false"/>
                 <FIELD NAME="score" TYPE="float" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>

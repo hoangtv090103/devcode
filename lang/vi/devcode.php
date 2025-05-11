@@ -1,14 +1,14 @@
 <?php
 defined('MOODLE_INTERNAL') || die();
 
-$string['modulename'] = 'Code';
-$string['modulenameplural'] = 'Devcode';
+$string['modulename'] = 'Lập trình';
+$string['modulenameplural'] = 'Lập trình';
 $string['modulename_help'] = 'Mô-đun Devcode cho phép giảng viên tạo các bài tập lập trình được chấm điểm tự động.';
 $string['pluginname'] = 'Devcode';
-$string['pluginadministration'] = 'Quản trị Devcode';
+$string['pluginadministration'] = 'Lập trình';
 
 // Chuỗi cho biểu mẫu
-$string['assignmentname'] = 'Tên';
+$string['assignmentname'] = 'Tên bài tập';
 $string['description'] = 'Mô tả';
 $string['programminglanguage'] = 'Ngôn ngữ lập trình';
 $string['languagefixed'] = '(cố định cho bài tập này)';
@@ -27,8 +27,8 @@ $string['savegrade'] = 'Lưu điểm';
 $string['plagiarismsettings'] = 'Cài đặt phát hiện đạo văn';
 $string['enableplagiarism'] = 'Bật phát hiện đạo văn';
 $string['enableplagiarismdesc'] = 'Kiểm tra sự giống nhau giữa các bài nộp của sinh viên';
-$string['similaritythreshold'] = 'Ngưỡng phần trăm giống nhau (%)';
-$string['similaritythreshold_help'] = 'Đặt ngưỡng phần trăm cho sự giống nhau của mã nguồn. Bài nộp có mức giống nhau vượt quá ngưỡng này sẽ bị đánh dấu là có khả năng đạo văn.';
+$string['similaritythreshold'] = 'Ngưỡng giống nhau (%)';
+$string['similaritythreshold_help'] = 'Đặt phần trăm ngưỡng cho sự giống nhau của mã nguồn. Bài nộp có mức giống nhau vượt quá ngưỡng này sẽ bị đánh dấu là có khả năng đạo văn.';
 $string['similaritythresholderror'] = 'Ngưỡng phải là một số từ 1 đến 100';
 $string['plagiarismreport'] = 'Báo cáo đạo văn';
 $string['similarityscore'] = 'Điểm giống nhau';
@@ -53,7 +53,7 @@ $string['filterbyassignment'] = 'Lọc theo bài tập';
 $string['allassignments'] = 'Tất cả bài tập';
 $string['apply'] = 'Áp dụng';
 $string['noplagiarismfound'] = 'Không phát hiện đạo văn.';
-$string['maxsimilarity'] = 'Mức giống nhau cao nhất';
+$string['maxsimilarity'] = 'Mức giống nhau tối đa';
 $string['matchescount'] = 'Số lượng trùng khớp';
 $string['invalidaction'] = 'Hành động không hợp lệ.';
 $string['invalidaccess'] = 'Truy cập không hợp lệ.';
@@ -96,7 +96,7 @@ $string['visibletostudent'] = 'Hiển thị cho sinh viên';
 $string['addmoretestcases'] = 'Thêm test case';
 $string['testcasepointserror'] = 'Điểm phải là số dương';
 $string['testcasetimelimiterror'] = 'Giới hạn thời gian phải là số dương';
-$string['viewtestcases'] = 'Xem các test case';
+$string['viewtestcases'] = 'Xem test case';
 $string['visibletestcases'] = 'Test case ví dụ';
 $string['hiddentestcases'] = 'Test case ẩn (chỉ giáo viên thấy)';
 $string['notestcasesyet'] = 'Chưa có test case nào được thêm';
@@ -122,7 +122,7 @@ $string['submissionstatus_processing'] = 'Đang xử lý';
 $string['submissionstatus_graded'] = 'Đã chấm điểm';
 $string['submissionstatus_error'] = 'Lỗi';
 $string['submissionstatus_notsubmitted'] = 'Chưa nộp';
-$string['submissionstatus_submitted'] = 'Đã nộp vào {$a}';
+$string['submissionstatus_submitted'] = 'Đã nộp lúc {$a}';
 $string['submissionstatus_overdue'] = 'Quá hạn';
 $string['submissionstatus_notallowed'] = 'Không được phép nộp bài vào thời điểm này';
 $string['submissionstatus_completed'] = 'Hoàn thành';
@@ -141,12 +141,12 @@ $string['submissionsmultiple'] = '{$a} bài nộp';
 $string['failed_testcase'] = 'Test case #{$a} thất bại';
 $string['execution_stopped'] = 'Dừng thực thi do lỗi ở test case #{$a}';
 $string['compilation_error'] = 'Lỗi biên dịch';
-$string['runtime_error'] = 'Lỗi khi chạy chương trình';
+$string['runtime_error'] = 'Lỗi khi chạy';
 $string['time_limit_exceeded'] = 'Vượt quá giới hạn thời gian';
 $string['memory_limit_exceeded'] = 'Vượt quá giới hạn bộ nhớ';
 $string['wrong_answer'] = 'Kết quả sai';
 
-// Chuỗi trạng thái cho DevCode
+// Chuỗi trạng thái DevCode cụ thể
 $string['accepted'] = 'Đúng hoàn toàn';
 $string['partially_accepted'] = 'Đúng một phần';
 $string['partially_correct'] = 'Đúng một phần';
@@ -155,21 +155,21 @@ $string['memory_limit'] = 'Vượt quá bộ nhớ';
 $string['compile_error'] = 'Lỗi biên dịch';
 $string['pending'] = 'Đang chờ';
 
-// Chuỗi trạng thái cho submission status_id
+// Chuỗi trạng thái theo submission status_id
 $string['submissionstatus_accepted'] = 'Đúng hoàn toàn';
 $string['submissionstatus_wrong_answer'] = 'Kết quả sai';
 $string['submissionstatus_time_limit'] = 'Vượt quá thời gian';
 $string['submissionstatus_memory_limit'] = 'Vượt quá bộ nhớ';
 $string['submissionstatus_compile_error'] = 'Lỗi biên dịch';
-$string['submissionstatus_runtime_error'] = 'Lỗi khi chạy chương trình';
+$string['submissionstatus_runtime_error'] = 'Lỗi khi chạy';
 $string['submissionstatus_pending'] = 'Đang chờ';
 $string['submissionstatus_processing'] = 'Đang xử lý';
 $string['submissionstatus_partially_accepted'] = 'Đúng một phần';
 
 // Chuỗi phản hồi Judge0
-$string['allteststpassed'] = 'Tất cả test case đều đúng!';
-$string['someteststpassed'] = '{$a->passed} trên tổng số {$a->total} test case đúng';
-$string['noteststpassed'] = 'Không có test case nào đúng';
+$string['allteststpassed'] = 'Tất cả test đều vượt qua!';
+$string['someteststpassed'] = '{$a->passed} trên tổng số {$a->total} test đã vượt qua';
+$string['noteststpassed'] = 'Không có test nào vượt qua';
 
 // Chuỗi giao diện nộp bài mới
 $string['submission'] = 'Bài nộp';
@@ -187,10 +187,10 @@ $string['invalidfiletype'] = 'Loại tệp không hợp lệ cho {$a}. Vui lòng
 // Chuỗi hiển thị kết quả
 $string['gradingresults'] = 'Kết quả chấm điểm';
 $string['pointsearned'] = 'Điểm đạt được';
-$string['testcasespassed'] = 'Số test case đúng';
+$string['testcasespassed'] = 'Test case đã vượt qua';
 $string['testcasestats'] = 'Thống kê test case';
-$string['testcasespassrate'] = 'Tỷ lệ vượt test case';
-$string['allpassed'] = 'Tất cả test case đều đúng!';
+$string['testcasespassrate'] = 'Tỷ lệ vượt qua';
+$string['allpassed'] = 'Tất cả test case đã vượt qua!';
 $string['executiontime'] = 'Thời gian thực thi';
 $string['viewdetailedresults'] = 'Xem kết quả chi tiết';
 $string['resubmit'] = 'Nộp lại';
@@ -218,11 +218,11 @@ $string['resultwronganswer'] = 'Kết quả sai';
 $string['resultcompilationerror'] = 'Lỗi biên dịch';
 $string['resulttimelimit'] = 'Vượt quá thời gian';
 $string['resultmemorylimit'] = 'Vượt quá bộ nhớ';
-$string['resultruntime'] = 'Lỗi khi chạy chương trình';
+$string['resultruntime'] = 'Lỗi khi chạy';
 $string['expectedoutput'] = 'Kết quả mong đợi';
 $string['actualoutput'] = 'Kết quả của bạn';
 $string['compilationoutput'] = 'Kết quả biên dịch';
-$string['runtimeerror'] = 'Lỗi khi chạy chương trình';
+$string['runtimeerror'] = 'Lỗi khi chạy';
 
 // Tính năng trình soạn thảo
 $string['codehint'] = 'Viết mã nguồn của bạn tại đây...';
@@ -233,12 +233,12 @@ $string['linenumbers'] = 'Hiển thị số dòng';
 $string['wordwrap'] = 'Tự động xuống dòng';
 $string['syntaxhighlighting'] = 'Tô màu cú pháp';
 $string['darkmode'] = 'Chế độ tối';
-$string['editorpreferences'] = 'Tùy chọn trình soạn thảo';
+$string['editorpreferences'] = 'Tùy chỉnh trình soạn thảo';
 
 // Thông báo API/Backend
 $string['apierror'] = 'Lỗi khi kết nối với dịch vụ chấm điểm';
 $string['retrying'] = 'Kết nối thất bại, đang thử lại...';
-$string['maxretries'] = 'Đã đạt số lần thử tối đa, vui lòng thử lại sau';
+$string['maxretries'] = 'Đã thử lại tối đa, vui lòng thử lại sau';
 $string['simulationmode'] = 'Đang chạy ở chế độ mô phỏng (không thực thi mã nguồn thực tế)';
 $string['backenderror'] = 'Hệ thống chấm điểm báo lỗi';
 $string['submissionqueued'] = 'Bài nộp của bạn đã được đưa vào hàng chờ chấm điểm';
@@ -260,7 +260,7 @@ $string['taskdescription'] = 'Mô tả bài tập';
 
 // Chuỗi tự động lưu
 $string['autosavedsuccessfully'] = 'Đã tự động lưu';
-$string['restoredautosave'] = 'Đã khôi phục từ bản tự động lưu';
+$string['restoredautosave'] = 'Đã khôi phục từ bản lưu tự động';
 $string['restoresavedcode'] = 'Khôi phục phiên bản đã lưu';
 $string['localsavedversionexists'] = 'Đã tồn tại một phiên bản đã lưu khác';
 $string['secondsago'] = 'giây trước';
@@ -306,7 +306,7 @@ $string['checking_plagiarism'] = 'Đang kiểm tra đạo văn...';
 $string['missingidparam'] = 'Thiếu tham số bắt buộc: {$a}';
 
 $string['systemerror'] = 'Đã xảy ra lỗi hệ thống trong quá trình xử lý. Vui lòng thử lại sau hoặc liên hệ giáo viên nếu vấn đề vẫn tiếp diễn.';
-$string['errordetailsstaff'] = 'Chi tiết lỗi kỹ thuật sau chỉ hiển thị cho nhân viên:';
+$string['errordetailsstaff'] = 'Chi tiết kỹ thuật lỗi sau chỉ hiển thị cho nhân viên:';
 
 // Cài đặt quản trị cho Judge0 và Dolos
 $string['judge0_settings'] = 'Cài đặt Judge0 API';
@@ -329,21 +329,48 @@ $string['dolos_timeout_desc'] = 'Thời gian tối đa (giây) chờ phản hồ
 
 $string['submissionstatus_6'] = 'Đúng một phần';
 
-// Testcase file upload
-$string['testcasefile'] = 'Tải lên file testcase';
-$string['testcasefile_help'] = 'Tải lên một file JSON chứa các testcase. Mỗi testcase bao gồm các trường: input, output, points, time_limit, description và visible_to_student. Điều này sẽ thêm hoặc thay thế các testcase hiện có.';
-$string['testcasefileformat'] = 'Định dạng file testcase';
-$string['testcasefileformatdesc'] = 'Tải lên file JSON với một mảng các đối tượng testcase. Mỗi testcase nên có các trường: "input", "output", "points", "time_limit", "description" và "visible_to_student".';
-$string['testcasefileerror'] = 'Lỗi khi xử lý file testcase';
-$string['testcasefileempty'] = 'File testcase tải lên trống hoặc không hợp lệ';
-$string['testcasefileprocessed'] = '{$a} testcase đã được nhập thành công';
-$string['testcaseuploadexample'] = 'Định dạng ví dụ: [{"input":"1 2","output":"3","points":10,"time_limit":3000,"description":"Bài toán cộng","visible_to_student":1}]';
-$string['testcaseuploadtip'] = 'Gợi ý: Bạn có thể tạo testcase thủ công trước, sau đó xuất ra để xem định dạng chuẩn';
-$string['testcasedefaults'] = 'Giá trị mặc định: points = 10.0, time_limit = 3000ms, visible_to_student = false. Chỉ có trường input và output là bắt buộc.';
-$string['testcaseexport'] = 'Xuất testcase hiện tại';
-$string['testcaseimport'] = 'Nhập testcase';
-$string['downloadasjson'] = 'Tải xuống dưới dạng file {$a}';
-$string['downloadastxt'] = 'Tải xuống dưới dạng file {$a}';
-$string['download'] = 'Tải xuống';
+// Tính năng chạy thử mã nguồn
+$string['runcode'] = 'Chạy thử mã nguồn';
+$string['customtestinput'] = 'Dữ liệu vào tùy chỉnh';
+$string['enterinput'] = 'Nhập dữ liệu kiểm thử của bạn tại đây...';
+$string['runningcode'] = 'Đang chạy mã nguồn của bạn...';
+$string['runresult'] = 'Kết quả chạy thử';
+$string['output'] = 'Kết quả xuất ra';
+$string['stderr'] = 'Kết quả lỗi';
+$string['compileoutput'] = 'Kết quả biên dịch';
+$string['nooutput'] = 'Không có kết quả xuất ra';
+$string['noerror'] = 'Không có lỗi';
+$string['nocompileoutput'] = 'Không có kết quả biên dịch';
+$string['connectionerror'] = 'Không thể kết nối tới máy chủ. Vui lòng thử lại.';
+$string['actualoutput'] = 'Kết quả thực tế';
+$string['summary'] = 'Tóm tắt';
+$string['debug'] = 'Gỡ lỗi';
+$string['testcasespassed'] = 'Test case đã vượt qua';
+
+// Tải lên file test case
+$string['testcasefile'] = 'Tải lên file test case';
+$string['testcasefile_help'] = 'Tải lên file JSON chứa các test case. Mỗi test case cần có các trường: input, output, points, time_limit, description, visible_to_student. Việc này sẽ thêm mới hoặc thay thế các test case hiện có.';
+$string['testcasefileformat'] = 'Định dạng file test case';
+$string['testcasefileformatdesc'] = 'Tải lên file JSON chứa một mảng các đối tượng test case. Mỗi test case cần có các trường: "input", "output", "points", "time_limit", "description", "visible_to_student".';
+$string['testcasefileerror'] = 'Lỗi khi xử lý file test case';
+$string['testcasefileempty'] = 'File test case tải lên bị rỗng hoặc không hợp lệ';
+$string['testcasefileprocessed'] = '{$a} test case đã được nhập thành công';
+$string['testcaseuploadexample'] = 'Ví dụ định dạng: [{"input":"1 2","output":"3","points":10,"time_limit":3000,"description":"Test cộng","visible_to_student":1}]';
+$string['testcaseuploadtip'] = 'Mẹo: Bạn có thể tạo test case thủ công trước, sau đó xuất ra để xem định dạng mong muốn';
+$string['testcasedefaults'] = 'Giá trị mặc định: points = 10.0, time_limit = 3000ms, visible_to_student = false. Chỉ bắt buộc trường input và output.';
+$string['testcaseexport'] = 'Xuất các trường hợp thử nghiệm';
+$string['testcaseimport'] = 'Nhập test case';
+$string['downloadasjson'] = 'Tải về dưới dạng file {$a}';
+$string['downloadastxt'] = 'Tải về dưới dạng file {$a}';
+$string['download'] = 'Tải về';
+
+$string['testcaselimit_memory'] = 'Giới hạn bộ nhớ (MB)';
+$string['error_invalidmemorylimit'] = 'Giới hạn bộ nhớ không hợp lệ. Phải là một số dương (MB).';
+
+$string['testcasevisible'] = 'Hiển thị cho sinh viên';
+$string['testcaseisexample'] = 'Là ví dụ';
+$string['testcasememorylimit'] = 'Giới hạn bộ nhớ (MB)';
+$string['testcasememorylimiterror'] = 'Giới hạn bộ nhớ phải là một số dương (MB).';
+$string['addtestcase'] = 'Thêm trường hợp thử nghiệm';
 
 ?>

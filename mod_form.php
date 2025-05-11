@@ -18,7 +18,7 @@ class mod_devcode_mod_form extends moodleform_mod
      */
     public function definition()
     {
-        global $CFG, $DB;
+        global $CFG, $DB, $OUTPUT, $PAGE, $USER;
 
         $mform = $this->_form;
 
@@ -79,16 +79,13 @@ class mod_devcode_mod_form extends moodleform_mod
 
         // Export button for existing assignments
         if (isset($this->_instance) && $this->_instance) {
-            $export_url = new moodle_url('/mod/devcode/export_testcases.php', array('id' => $this->_cm->id));
-            $export_button = html_writer::link(
+            $export_url = new \moodle_url('/mod/devcode/export_testcases.php', array('id' => $this->_cm->id));
+            $export_button = \core\output\html_writer::link(
                 $export_url,
                 get_string('testcaseexport', 'devcode'),
                 array('class' => 'btn btn-secondary', 'target' => '_blank')
             );
-            $mform->addElement('html', '<div class="form-group row">
-                <div class="col-md-3"></div>
-                <div class="col-md-9">' . $export_button . '</div>
-            </div>');
+            $mform->addElement('static', 'exportbutton', get_string('testcaseexport', 'devcode'), $export_button);
         }
 
         // File manager for uploading test case file
@@ -138,7 +135,7 @@ class mod_devcode_mod_form extends moodleform_mod
             'textarea',
             'testcase_input',
             get_string('testcaseinput', 'devcode'),
-            array('rows' => 3, 'cols' => 50)
+            array('rows' => 3, 'cols' => 50, 'class' => 'testcase-input')
         );
 
         // Test case output
@@ -146,7 +143,7 @@ class mod_devcode_mod_form extends moodleform_mod
             'textarea',
             'testcase_output',
             get_string('testcaseoutput', 'devcode'),
-            array('rows' => 3, 'cols' => 50)
+            array('rows' => 3, 'cols' => 50, 'class' => 'testcase-output')
         );
 
         // Test case points
@@ -154,7 +151,7 @@ class mod_devcode_mod_form extends moodleform_mod
             'text',
             'testcase_points',
             get_string('testcasepoints', 'devcode'),
-            array('size' => 5)
+            array('size' => 5, 'class' => 'testcase-points')
         );
 
         // Time limit (ms)
@@ -162,7 +159,15 @@ class mod_devcode_mod_form extends moodleform_mod
             'text',
             'testcase_time_limit',
             get_string('testcasetimelimit', 'devcode'),
-            array('size' => 5)
+            array('size' => 5, 'class' => 'testcase-timelimit')
+        );
+
+        // Memory limit (MB)
+        $repeatarray[] = $mform->createElement(
+            'text',
+            'testcase_memory_limit',
+            get_string('testcasememorylimit', 'devcode'),
+            array('size' => 5, 'class' => 'testcase-memorylimit')
         );
 
         // Test case description
@@ -170,7 +175,7 @@ class mod_devcode_mod_form extends moodleform_mod
             'textarea',
             'testcase_description',
             get_string('testcasedescription', 'devcode'),
-            array('rows' => 3, 'cols' => 50)
+            array('rows' => 3, 'cols' => 50, 'class' => 'testcase-description')
         );
 
         // Visible to student
@@ -208,27 +213,41 @@ class mod_devcode_mod_form extends moodleform_mod
         $repeateloptions = array();
         $repeateloptions['testcase_input']['type'] = PARAM_RAW;
         $repeateloptions['testcase_output']['type'] = PARAM_RAW;
-        $repeateloptions['testcase_points']['type'] = PARAM_FLOAT;
+        $repeateloptions['testcase_points']['type'] = PARAM_INT;
         $repeateloptions['testcase_time_limit']['type'] = PARAM_INT;
         $repeateloptions['testcase_visible']['type'] = PARAM_INT;
         $repeateloptions['testcase_id']['type'] = PARAM_INT;
         $repeateloptions['testcase_delete']['type'] = PARAM_BOOL;
         $repeateloptions['testcase_description']['type'] = PARAM_RAW;
+        $repeateloptions['testcase_memory_limit']['type'] = PARAM_INT;
 
         // Set default values
         $repeateloptions['testcase_points']['default'] = 10.0; // Uncomment default
         $repeateloptions['testcase_time_limit']['default'] = 3000; // Uncomment default
         $repeateloptions['testcase_visible']['default'] = 0; // Set default
         $repeateloptions['testcase_delete']['default'] = 0;
+        $repeateloptions['testcase_memory_limit']['default'] = 128; // Default memory limit in MB
+
+        if (isset($this->_instance) && $this->_instance) {
+            $numtestcases = $DB->count_records('devcode_testcases', array('devcodeid' => $this->_instance));
+            $repeateloptions['testcases']['numcopies'] = max(1, $numtestcases); // Ensure at least one for new, or actual count for existing
+        } else {
+            $repeateloptions['testcases']['numcopies'] = 1; // Start with one test case for new activities
+        }
+        
+        $mform->setType('testcase_input', PARAM_RAW);
+        $mform->setType('testcase_output', PARAM_RAW);
+        $mform->setType('testcase_description', PARAM_RAW);
+        $mform->setType('testcase_memory_limit', PARAM_INT);
 
         $this->repeat_elements(
             $repeatarray,
-            $testcaserepeat,
+            $repeateloptions['testcases']['numcopies'],
             $repeateloptions,
-            'testcase_repeats',
-            'testcase_add',
+            'testcases_repeats',
+            'testcases_add_fields',
             1,
-            get_string('addmoretestcases', 'devcode'),
+            get_string('addtestcase', 'devcode'),
             true
         );
 
@@ -240,7 +259,6 @@ class mod_devcode_mod_form extends moodleform_mod
         $this->add_action_buttons();
 
         // Add JavaScript for test case numbering
-        global $PAGE;
         $js = "
         require(['jquery'], function($) {
             function updateTestCaseNumbers() {
@@ -283,7 +301,7 @@ class mod_devcode_mod_form extends moodleform_mod
                 updateTestCaseNumbers();
                 
                 // Re-initialize after adding new test case
-                $('#fitem_id_testcase_add input[type=\"submit\"]').on('click', function() {
+                $('#fitem_id_testcases_add_fields input[type=\"submit\"]').on('click', function() {
                     setTimeout(updateTestCaseNumbers, 100);
                 });
                 
@@ -305,6 +323,7 @@ class mod_devcode_mod_form extends moodleform_mod
     public function data_preprocessing(&$default_values)
     {
         global $DB;
+        parent::data_preprocessing($default_values);
 
         if (isset($this->_instance) && $this->_instance) {
             // Prepare file manager for test case file uploads
@@ -322,6 +341,7 @@ class mod_devcode_mod_form extends moodleform_mod
                 $default_values['testcase_output'][$testcasecount] = $testcase->output;
                 $default_values['testcase_points'][$testcasecount] = $testcase->points;
                 $default_values['testcase_time_limit'][$testcasecount] = $testcase->time_limit;
+                $default_values['testcase_memory_limit'][$testcasecount] = isset($testcase->memory_limit) ? round($testcase->memory_limit / 1024, 2) : 128; // Convert KB to MB
                 $default_values['testcase_visible'][$testcasecount] = $testcase->visible_to_student;
                 $default_values['testcase_description'][$testcasecount] = $testcase->description;
                 $default_values['testcase_id'][$testcasecount] = $testcase->id; // Store the ID for tracking
@@ -381,6 +401,23 @@ class mod_devcode_mod_form extends moodleform_mod
             }
         }
 
+        // Validate memory limit
+        if (isset($data['testcase_memory_limit'])) {
+            foreach ($data['testcase_memory_limit'] as $key => $memory_limit) {
+                if (!is_numeric($memory_limit) || $memory_limit <= 0) {
+                    $errors["testcase_memory_limit[$key]"] = get_string('testcasememorylimiterror', 'devcode');
+                }
+            }
+        }
+        
+        // Convert memory limit from MB to KB before saving to database
+        if (empty($errors) && isset($data['testcase_memory_limit'])) {
+            foreach ($data['testcase_memory_limit'] as $key => $memory_limit) {
+                // Convert MB to KB (multiply by 1024)
+                $data['testcase_memory_limit'][$key] = (int)($memory_limit * 1024);
+            }
+        }
+
         // Validate plagiarism settings
         if (!empty($data['enable_plagiarism']) && isset($data['similarity_threshold'])) {
             $threshold = $data['similarity_threshold'];
@@ -392,7 +429,7 @@ class mod_devcode_mod_form extends moodleform_mod
         // Validate test case file (if uploaded)
         if (!empty($data['testcasefile'])) {
             $fs = get_file_storage();
-            $usercontext = context_user::instance($USER->id);
+            $usercontext = \core\context\user::instance($USER->id);
             $draftfiles = $fs->get_area_files($usercontext->id, 'user', 'draft', $data['testcasefile'], 'id', false);
             
             if (!empty($draftfiles)) {
