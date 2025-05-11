@@ -30,7 +30,7 @@ $CFG->devcode = [
         'wait_for_result' => false,
         'default_memory_limit' => 128000 // Default memory limit in KB (128MB)
     ],
-    
+
     // Dolos plagiarism detection configuration
     'dolos' => [
         'api_url' => 'https://dolos.ugent.be/api',
@@ -40,7 +40,7 @@ $CFG->devcode = [
         'poll_interval' => 5,
         'threshold' => 0.8
     ],
-    
+
     // Plagiarism detection settings
     'plagiarism' => [
         'enabled' => true,

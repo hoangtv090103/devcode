@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Export test cases for a devcode instance
  *
@@ -64,32 +65,36 @@ if ($action === 'download') {
     $PAGE->set_title(format_string($devcode->name) . ': ' . get_string('testcaseexport', 'devcode'));
     $PAGE->set_heading(format_string($course->fullname));
     $PAGE->set_context($context);
-    
+
     echo $OUTPUT->header();
     echo $OUTPUT->heading(format_string($devcode->name) . ': ' . get_string('testcaseexport', 'devcode'));
-    
+
     // Add download buttons
     echo html_writer::start_div('export-actions');
-    
+
     // JSON Download button
-    $json_url = new moodle_url('/mod/devcode/export_testcases.php', 
-        array('id' => $cm->id, 'action' => 'download', 'format' => 'json'));
+    $json_url = new moodle_url(
+        '/mod/devcode/export_testcases.php',
+        array('id' => $cm->id, 'action' => 'download', 'format' => 'json')
+    );
     echo html_writer::start_div('action-button');
     echo $OUTPUT->single_button($json_url, get_string('downloadasjson', 'devcode', 'JSON'), 'get');
     echo html_writer::end_div();
-    
+
     // TXT Download button
-    $txt_url = new moodle_url('/mod/devcode/export_testcases.php', 
-        array('id' => $cm->id, 'action' => 'download', 'format' => 'txt'));
+    $txt_url = new moodle_url(
+        '/mod/devcode/export_testcases.php',
+        array('id' => $cm->id, 'action' => 'download', 'format' => 'txt')
+    );
     echo html_writer::start_div('action-button');
     echo $OUTPUT->single_button($txt_url, get_string('downloadastxt', 'devcode', 'TXT'), 'get');
     echo html_writer::end_div();
-    
+
     echo html_writer::end_div();
-    
+
     // Display the test cases in a pre element for easy copying
     echo html_writer::tag('pre', s($json_data), array('class' => 'testcase-json'));
-    
+
     // Add some JavaScript to allow easy selection/copying
     $js = "
     require(['jquery'], function($) {
@@ -103,7 +108,7 @@ if ($action === 'download') {
     });
     ";
     $PAGE->requires->js_amd_inline($js);
-    
+
     // Add some basic styling
     $css = "
     .testcase-json {
@@ -127,13 +132,13 @@ if ($action === 'download') {
     }
     ";
     echo html_writer::tag('style', $css);
-    
+
     // Back to module link
     $module_url = new moodle_url('/mod/devcode/view.php', array('id' => $cm->id));
     echo html_writer::div(
         html_writer::link($module_url, get_string('backtocourse', 'devcode')),
         'backlink'
     );
-    
+
     echo $OUTPUT->footer();
-} 
+}

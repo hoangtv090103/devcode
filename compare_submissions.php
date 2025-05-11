@@ -110,7 +110,7 @@ if ($stored_result && isset($stored_result->similarity_score)) {
     $normalized1 = $plagiarism->get_normalized_code($code1);
     $normalized2 = $plagiarism->get_normalized_code($code2);
     $similarity = $plagiarism->get_similarity($normalized1, $normalized2);
-    
+
     // Store this result for future use
     $new_record = new stdClass();
     $new_record->submission1_id = $sid1;
@@ -156,11 +156,11 @@ echo '</div>';
 echo '<div class="code-tabs">';
 echo '<ul class="nav nav-tabs" id="code-tabs" role="tablist">';
 echo '<li class="nav-item">';
-echo '<a class="nav-link active" id="submission1-tab" data-toggle="tab" href="#submission1" role="tab">' . 
+echo '<a class="nav-link active" id="submission1-tab" data-toggle="tab" href="#submission1" role="tab">' .
     get_string('submission', 'mod_devcode') . ' 1: ' . fullname($student1) . '</a>';
 echo '</li>';
 echo '<li class="nav-item">';
-echo '<a class="nav-link" id="submission2-tab" data-toggle="tab" href="#submission2" role="tab">' . 
+echo '<a class="nav-link" id="submission2-tab" data-toggle="tab" href="#submission2" role="tab">' .
     get_string('submission', 'mod_devcode') . ' 2: ' . fullname($student2) . '</a>';
 echo '</li>';
 echo '</ul>';
@@ -183,7 +183,7 @@ echo '</div>'; // End code-tabs
 // Return link
 echo '<div class="back-links mt-4">';
 $reporturl = $CFG->wwwroot . '/mod/devcode/plagiarism_report.php?id=' . $cm->id . '&sid=' . $sid1;
-echo '<a href="' . $reporturl . '" class="btn btn-secondary">' . 
+echo '<a href="' . $reporturl . '" class="btn btn-secondary">' .
     get_string('backtoplagiarismreport', 'mod_devcode') . '</a>';
 echo '</div>';
 
@@ -221,4 +221,4 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>';
 
 // Finish the page
-echo $OUTPUT->footer(); 
+echo $OUTPUT->footer();
