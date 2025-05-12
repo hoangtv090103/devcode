@@ -299,13 +299,15 @@ if ($submission->status === 'plagiarism' || $submission->status === 'plagiarism_
     // Check both submission1_id and submission2_id fields since the submission could be in either one
     $plagiarism_record = $DB->get_record_sql(
         "SELECT * FROM {devcode_plagiarism} 
-         WHERE submission1_id = ? OR submission2_id = ? 
+         WHERE (submission1_id = ? AND submission2_id IS NOT NULL) 
+         OR (submission2_id = ? AND submission1_id IS NOT NULL) 
          ORDER BY similarity_score DESC LIMIT 1",
         array($submission->id, $submission->id)
     );
     
-    $similarity_score = $plagiarism_record ? $plagiarism_record->similarity_score : 0;
-    $similarity_percent = round($similarity_score * 100, 1);
+    // Get the similarity score from the database, ensuring it's treated as a percentage value
+    $similarity_score_db = $plagiarism_record ? $plagiarism_record->similarity_score : 0;
+    $similarity_percent = $similarity_score_db * 100;
     
     // Hiển thị cảnh báo theo mẫu trong hình
     echo html_writer::start_tag('div', array('class' => 'plagiarism-warning'));
@@ -314,7 +316,7 @@ if ($submission->status === 'plagiarism' || $submission->status === 'plagiarism_
     echo html_writer::start_tag('span', array('class' => 'fa fa-exclamation-triangle text-danger mr-2'));
     echo html_writer::end_tag('span');
     
-    // Thông báo chính
+    // Thông báo chính với độ tương đồng chính xác từ DB
     echo html_writer::tag('strong', 'Phát hiện có khả năng đạo văn (độ tương đồng: ' . $similarity_percent . '%)');
     
     // Xem chi tiết với URL

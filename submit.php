@@ -443,6 +443,13 @@ if ($mform->is_cancelled()) {
         if ($devcode->enable_plagiarism) {
             debugging('Starting plagiarism detection for submission: ' . $submission->id, DEBUG_DEVELOPER);
             $plagiarism_detected = devcode_check_plagiarism($submission->id);
+            
+            // If plagiarism was detected, don't continue with grading
+            if ($plagiarism_detected) {
+                debugging('Plagiarism detected, skipping grading process', DEBUG_DEVELOPER);
+                // The plagiarism handler has already updated the submission status
+                $submission = $DB->get_record('devcode_submissions', ['id' => $submission->id]);
+            }
         }
         
         // If no plagiarism detected, proceed with grading

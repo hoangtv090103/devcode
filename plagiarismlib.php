@@ -1,45 +1,99 @@
 <?php
+
 /**
  * Plagiarism detection functions for module devcode
  * @package    mod_devcode
  */
 
 defined('MOODLE_INTERNAL') || die();
+global $CFG;
 require_once(__DIR__ . '/config.php');
 require_once(__DIR__ . '/apilib.php');
 require_once(__DIR__ . '/gradelib.php');
 require_once(__DIR__ . '/dolos_lib.php');
+require_once($CFG->dirroot . '/lib/accesslib.php');
+require_once($CFG->dirroot . '/lib/enrollib.php');
+require_once($CFG->dirroot . '/course/lib.php');
+require_once($CFG->libdir . '/modinfolib.php');
 
-function devcode_check_plagiarism($submissionid) {
+function devcode_check_plagiarism($submissionid)
+{
     global $CFG, $DB;
     $oldlimit = ini_get('max_execution_time');
     set_time_limit(300);
     try {
         debugging("devcode_check_plagiarism: $submissionid", DEBUG_DEVELOPER);
         if (empty($CFG->devcode)) require_once(__DIR__ . '/config.php');
-        $submission = $DB->get_record('devcode_submissions', ['id'=>$submissionid], '*', MUST_EXIST);
-        $devcode = $DB->get_record('devcode', ['id'=>$submission->devcodeid], '*', MUST_EXIST);
+        $submission = $DB->get_record('devcode_submissions', ['id' => $submissionid], '*', MUST_EXIST);
+        $devcode = $DB->get_record('devcode', ['id' => $submission->devcodeid], '*', MUST_EXIST);
         if (empty($devcode->course)) {
             $cm = get_coursemodule_from_instance('devcode', $devcode->id, 0, false, MUST_EXIST);
             $devcode->course = $cm->course;
         }
         if (empty($devcode->enable_plagiarism)) return false;
-        
+
         // Handle either language or language_id field
-        $language = !empty($devcode->language) ? $devcode->language : 
-                   (isset($submission->language_id) ? $submission->language_id : $submission->language);
-        
-        $params = [$devcode->id, $submission->userid, $submission->id, $devcode->id, $submission->userid, $submission->id];
-        $others = $DB->get_records_sql(
-            "SELECT s.* FROM {devcode_submissions} s
-             INNER JOIN (
-                 SELECT userid, MAX(timemodified) AS maxtime
-                 FROM {devcode_submissions}
-                 WHERE devcodeid = ? AND userid != ? AND id != ?
-                 GROUP BY userid
-             ) latest
-             ON s.userid = latest.userid AND s.timemodified = latest.maxtime
-             WHERE s.devcodeid = ? AND s.userid != ? AND s.id != ?", $params);
+        $language = !empty($devcode->language) ? $devcode->language : (isset($submission->language_id) ? $submission->language_id : $submission->language);
+
+        // Only compare against student submissions 
+        // First, check if current submission is from teacher/admin
+        $is_teacher_admin = $DB->record_exists_sql(
+            "SELECT 1 FROM {role_assignments} ra
+             JOIN {role} r ON ra.roleid = r.id
+             JOIN {user} u ON ra.userid = u.id
+             JOIN {context} ctx ON ra.contextid = ctx.id
+             WHERE u.id = ? AND (r.shortname = 'teacher' OR r.shortname = 'editingteacher' OR r.shortname = 'manager' OR r.shortname = 'admin')
+             AND ctx.instanceid = ? AND ctx.contextlevel = 50", // 50 = CONTEXT_COURSE
+            array($submission->userid, $devcode->course)
+        );
+
+        if ($is_teacher_admin) {
+            debugging('Skipping plagiarism check for teacher/admin submission', DEBUG_DEVELOPER);
+            return false;
+        }
+
+        // Get student IDs in this course (excluding the current user)
+        $student_ids = $DB->get_fieldset_sql(
+            "SELECT DISTINCT u.id 
+            FROM {user} u
+            JOIN {role_assignments} ra ON u.id = ra.userid
+            JOIN {role} r ON ra.roleid = r.id
+            JOIN {context} ctx ON ra.contextid = ctx.id
+            WHERE r.shortname = 'student'
+            AND ctx.instanceid = ? AND ctx.contextlevel = 50
+            AND u.id <> ?",
+            array($devcode->course, $submission->userid)
+        );
+
+        if (empty($student_ids)) {
+            debugging('No other students found for plagiarism check', DEBUG_DEVELOPER);
+            return false;
+        }
+
+        // Only compare with OLDER submissions (submitted before current one)
+        // Create a string with placeholders for the student IDs
+        $placeholders = implode(',', array_fill(0, count($student_ids), '?'));
+
+        // If we have no student IDs, use a condition that will return no results
+        if (empty($placeholders)) {
+            $placeholders = '-1';
+        }
+
+        $sql = "SELECT s.* FROM {devcode_submissions} s
+                INNER JOIN (
+                    SELECT userid, MAX(timemodified) AS maxtime
+                    FROM {devcode_submissions}
+                    WHERE devcodeid = ? AND userid != ? AND timemodified < ?
+                    AND (status = 'graded' OR status = 'completed' OR status = 'accepted')
+                    GROUP BY userid
+                ) latest
+                ON s.userid = latest.userid AND s.timemodified = latest.maxtime
+                WHERE s.devcodeid = ? AND s.userid IN ($placeholders)";
+
+        $params = array($devcode->id, $submission->userid, $submission->timemodified, $devcode->id);
+        $params = array_merge($params, $student_ids);
+
+        $others = $DB->get_records_sql($sql, $params);
         if (!$others) {
             debugging('No other submissions for plagiarism', DEBUG_DEVELOPER);
             return false;
@@ -67,17 +121,20 @@ function devcode_check_plagiarism($submissionid) {
         $detected = !empty($resp['plagiarism_detected']);
         if ($detected) {
             $sim = !empty($resp['plagiarism_similarity']) ? floatval($resp['plagiarism_similarity']) : 0;
-            $threshold = isset($devcode->similarity_threshold) ? $devcode->similarity_threshold/100 : 0.8;
-            if ($sim >= $threshold) {
-                $submission->status = 'plagiarism';
+            $threshold = isset($devcode->similarity_threshold) ? $devcode->similarity_threshold : 80;
+            if ($sim * 100 >= $threshold) {
+                // Use consistent status 'plagiarism_detected' for all plagiarism cases
+                $submission->status = 'plagiarism_detected';
                 $submission->plagiarism_url = $resp['plagiarism_url'] ?? '';
-                $msg = get_string('plagiarism_detected', 'mod_devcode', format_string($sim));
+                $percent = round($sim * 100, 2);
+                $msg = get_string('plagiarism_detected', 'mod_devcode', format_string($percent));
                 if (!empty($submission->plagiarism_url)) $msg .= ' ' . get_string('plagiarism_details', 'mod_devcode', $submission->plagiarism_url);
                 $submission->score = 0;
                 $submission->feedback = $msg;
                 $submission->timemodified = time();
                 $DB->update_record('devcode_submissions', $submission);
                 devcode_update_grades($devcode, $submission->userid);
+                debugging("Plagiarism detected in legacy method: " . $percent . "% >= threshold " . $threshold . "%", DEBUG_DEVELOPER);
                 return true;
             }
         }
@@ -87,7 +144,8 @@ function devcode_check_plagiarism($submissionid) {
     }
 }
 
-function devcode_check_plagiarism_dolos($submission, $others, $language, $devcode) {
+function devcode_check_plagiarism_dolos($submission, $others, $language, $devcode)
+{
     debugging('dolos plagiarism check', DEBUG_DEVELOPER);
     $normlang = devcode_normalize_language_for_dolos($language);
     $ext = devcode_get_file_extension($normlang);
@@ -95,15 +153,17 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
         "id" => "current",
         "filename" => "current_submission.$ext",
         "code" => $submission->code,
-        "username" => "user_" . $submission->userid
+        "username" => "user_" . $submission->userid,
+        "timestamp" => $submission->timemodified // Add timestamp for chronological check
     ]];
     foreach ($others as $o) {
         // Check if languages match, supporting both language and language_id fields
         $current_lang = isset($submission->language_id) ? $submission->language_id : $submission->language;
         $other_lang = isset($o->language_id) ? $o->language_id : $o->language;
-        
-        if ($other_lang != $current_lang) continue;
-        
+
+        // Only compare with submissions that have matching language and are older
+        if ($other_lang != $current_lang || $o->timemodified >= $submission->timemodified) continue;
+
         $subs[] = [
             "id" => (string)$o->id,
             "filename" => "submission_{$o->id}.$ext",
@@ -120,27 +180,27 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
         debugging('Failed to create zip for Dolos', DEBUG_DEVELOPER);
         return false;
     }
-    
+
     // Use the functions from dolos_lib.php
     $result = dolos_submit_zip($zip, "assignment_{$devcode->id}", $normlang);
     if (!$result) {
         debugging('No result from Dolos API', DEBUG_DEVELOPER);
         return false;
     }
-    
+
     $html_url = $result['html_url'] ?? '';
     if (!$html_url) {
         debugging('No HTML URL in Dolos response: ' . json_encode($result), DEBUG_DEVELOPER);
         return false;
     }
-    
+
     $report_id = $result['id'] ?? '';
     if (!$report_id && preg_match('/\/reports\/([^\/]+)/', $html_url, $m)) $report_id = $m[1];
     if (!$report_id) {
         debugging('No report ID from Dolos', DEBUG_DEVELOPER);
         return false;
     }
-    
+
     // Wait for report to be processed
     $report = dolos_poll_report($report_id);
     if (!$report) {
@@ -151,14 +211,14 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
     // Handle tree-sitter-generic dependency issue
     if ($report['status'] === 'failed' && isset($report['error']) && $report['error'] === 'tree_sitter_generic_missing') {
         debugging("Detected tree-sitter-generic dependency issue. Retrying with 'c' language.", DEBUG_DEVELOPER);
-        
+
         // Create a new submission with 'c' language
         $result = dolos_submit_zip($zip, "assignment_{$devcode->id}_retry", 'c');
         if (!$result) {
             debugging('Failed retry submission to Dolos API', DEBUG_DEVELOPER);
             return false;
         }
-        
+
         $report_id = $result['id'] ?? '';
         if (!$report_id && isset($result['html_url']) && preg_match('/\/reports\/([^\/]+)/', $result['html_url'], $m)) {
             $report_id = $m[1];
@@ -167,7 +227,7 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
             debugging('No report ID from retry submission', DEBUG_DEVELOPER);
             return false;
         }
-        
+
         // Poll for report again
         $report = dolos_poll_report($report_id);
         if (!$report || $report['status'] !== 'finished') {
@@ -180,74 +240,92 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
         debugging('Report status not finished: ' . $report['status'], DEBUG_DEVELOPER);
         return false;
     }
-    
+
     // Get report data using the proper function
     $pairs = dolos_get_report_data($report_id, 'pairs');
     if (!$pairs) {
         debugging('No pairs data from report', DEBUG_DEVELOPER);
         return false;
     }
-    
+
     debugging('Successfully received report data with ' . count($pairs) . ' pairs', DEBUG_DEVELOPER);
-    
+
     // Process the plagiarism report
-    $threshold = isset($devcode->similarity_threshold) ? $devcode->similarity_threshold/100 : 0.8;
-    debugging("Similarity threshold: " . ($threshold*100) . "%", DEBUG_DEVELOPER);
-    
-    $plag = false; 
-    $maxsim = 0; 
+    $threshold = isset($devcode->similarity_threshold) ? $devcode->similarity_threshold : 80;
+    debugging("Similarity threshold: " . $threshold . "%", DEBUG_DEVELOPER);
+
+    $plag = false;
+    $maxsim = 0;
     $matches = [];
-    
     foreach ($pairs as $pair) {
+        // Only process pairs where the left path (first file) is the current submission
+        $current_submission_filename = "current_submission";
+        if (!isset($pair['leftFilePath']) || strpos($pair['leftFilePath'], $current_submission_filename) === 0) {
+            continue;
+        }
+
         $sim = !empty($pair['similarity']) ? floatval($pair['similarity']) : 0;
+        $percent = round($sim * 100, 2);
+
+        // Debug the similarity comparison for better troubleshooting
+        debugging("Checking pair similarity: " . $percent . "% vs threshold " . $threshold . "%", DEBUG_DEVELOPER);
+
         if ($sim > $maxsim) $maxsim = $sim;
-        if ($sim >= $threshold) { 
-            $plag = true; 
-            $matches[] = $pair; 
+
+        // Check if similarity exceeds threshold
+        if ($percent >= $threshold) {
+            debugging("Pair exceeds threshold: " . $percent . "% >= " . $threshold . "%", DEBUG_DEVELOPER);
+            $plag = true;
+            // Add note about which is the newer submission
+            $pair['chronology_note'] = 'This is a newer submission with similarities to older student work';
+            $matches[] = $pair;
+        } else {
+            debugging("Pair below threshold: " . $percent . "% < " . $threshold . "%", DEBUG_DEVELOPER);
         }
     }
-    
+
     if ($plag) {
-        debugging("Plagiarism detected: " . ($maxsim*100) . "%", DEBUG_DEVELOPER);
+        $percent = round($maxsim * 100, 2);
+        debugging("Plagiarism detected: " . $percent . "%", DEBUG_DEVELOPER);
         $submission->status = 'plagiarism_detected';
-        $percent = round($maxsim*100,2);
         $msg = get_string('plagiarism_detected', 'devcode', $percent);
-        
+
         if ($html_url) {
             $submission->plagiarism_url = $html_url;
             $msg .= ' ' . get_string('plagiarism_details', 'devcode', $html_url);
         }
-        
+
         $submission->score = 0;
         $submission->feedback = $msg;
         $submission->timemodified = time();
-        
+
         global $DB;
         $DB->update_record('devcode_submissions', $submission);
-        
+
         foreach ($matches as $pair) {
             $rec = (object)[
-                'submission1_id'=>$submission->id,
-                'submission2_id'=>0,
-                'similarity_score'=>floatval($pair['similarity']??0),
-                'devcodeid'=>$devcode->id,
-                'details'=>json_encode($pair),
-                'flagged'=>1,
-                'timecreated'=>time(),
-                'timemodified'=>time()
+                'submission1_id' => $submission->id,
+                'submission2_id' => 0,
+                'similarity_score' => floatval($pair['similarity'] ?? 0),
+                'devcodeid' => $devcode->id,
+                'details' => json_encode($pair),
+                'flagged' => 1,
+                'timecreated' => time(),
+                'timemodified' => time()
             ];
             $DB->insert_record('devcode_plagiarism', $rec);
         }
-        
+
         devcode_update_grades($devcode, $submission->userid);
         return true;
     }
-    
+
     debugging('No plagiarism above threshold', DEBUG_DEVELOPER);
     return false;
 }
 
-function devcode_create_submissions_zip($subs) {
+function devcode_create_submissions_zip($subs)
+{
     $temp_dir = rtrim(sys_get_temp_dir(), '/') . '/' . uniqid('dolos_dir_');
     if (!mkdir($temp_dir, 0755, true)) {
         debugging('Cannot create temp dir for ZIP', DEBUG_DEVELOPER);
@@ -256,43 +334,46 @@ function devcode_create_submissions_zip($subs) {
     foreach ($subs as $s) file_put_contents("$temp_dir/{$s['filename']}", $s['code']);
     $temp_zip = tempnam(sys_get_temp_dir(), 'dolos_zip_') . '.zip';
     $zip = new ZipArchive();
-    if ($zip->open($temp_zip, ZipArchive::CREATE|ZipArchive::OVERWRITE) !== true) {
+    if ($zip->open($temp_zip, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
         debugging('Cannot create ZIP', DEBUG_DEVELOPER);
-        array_map('unlink', glob("$temp_dir/*")); rmdir($temp_dir);
+        array_map('unlink', glob("$temp_dir/*"));
+        rmdir($temp_dir);
         return false;
     }
     foreach (glob("$temp_dir/*") as $f) $zip->addFile($f, basename($f));
     $zip->close();
     $content = file_get_contents($temp_zip);
     unlink($temp_zip);
-    array_map('unlink', glob("$temp_dir/*")); rmdir($temp_dir);
+    array_map('unlink', glob("$temp_dir/*"));
+    rmdir($temp_dir);
     return $content;
 }
 
-function devcode_normalize_language_for_dolos($language) {
+function devcode_normalize_language_for_dolos($language)
+{
     global $CFG;
     if (is_numeric($language)) $language = devcode_get_language_by_id($language);
     $language = strtolower(trim(preg_replace('/\(.*\)/', '', $language)));
-    
+
     // Check if plagiarism configuration exists
     if (!isset($CFG->devcode) || !is_array($CFG->devcode)) {
         debugging('DevCode configuration not found in $CFG->devcode', DEBUG_DEVELOPER);
         // Default to 'c' instead of 'generic' to avoid tree-sitter-generic dependency
         return 'c';
     }
-    
+
     if (!isset($CFG->devcode['plagiarism']) || !is_array($CFG->devcode['plagiarism'])) {
         debugging('Plagiarism configuration not found in $CFG->devcode[\'plagiarism\']', DEBUG_DEVELOPER);
         // Default to 'c' instead of 'generic' to avoid tree-sitter-generic dependency
         return 'c';
     }
-    
+
     if (!isset($CFG->devcode['plagiarism']['language_mapping']) || !is_array($CFG->devcode['plagiarism']['language_mapping'])) {
         debugging('Language mapping not found in plagiarism configuration', DEBUG_DEVELOPER);
         // Default to 'c' instead of 'generic' to avoid tree-sitter-generic dependency
         return 'c';
     }
-    
+
     // Check if there's a direct mapping for this language
     foreach ($CFG->devcode['plagiarism']['language_mapping'] as $pattern => $mapped) {
         if (stripos($language, $pattern) !== false) {
@@ -304,25 +385,34 @@ function devcode_normalize_language_for_dolos($language) {
             return $mapped;
         }
     }
-    
+
     debugging("No mapping found for language '$language', defaulting to 'c'", DEBUG_DEVELOPER);
     // Default to 'c' instead of 'generic' to avoid tree-sitter-generic dependency
     return 'c';
 }
 
-function devcode_get_file_extension($language) {
+function devcode_get_file_extension($language)
+{
     $exts = [
-        'python'=>'py','java'=>'java','cpp'=>'cpp','c'=>'c','javascript'=>'js',
-        'typescript'=>'ts','go'=>'go','rust'=>'rs','php'=>'php'
+        'python' => 'py',
+        'java' => 'java',
+        'cpp' => 'cpp',
+        'c' => 'c',
+        'javascript' => 'js',
+        'typescript' => 'ts',
+        'go' => 'go',
+        'rust' => 'rs',
+        'php' => 'php'
     ];
     $language = strtolower($language);
-    foreach ($exts as $k=>$v) if (strpos($language, $k)!==false) return $v;
+    foreach ($exts as $k => $v) if (strpos($language, $k) !== false) return $v;
     return 'txt';
 }
 
-function devcode_get_dolos_config() {
+function devcode_get_dolos_config()
+{
     global $CFG;
-    
+
     // Lấy cài đặt từ config (đã được cập nhật từ settings)
     return [
         'dolos_api_url' => $CFG->devcode['dolos']['api_url'] ?? 'https://dolos.ugent.be/api',
