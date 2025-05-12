@@ -367,11 +367,30 @@ if ($submission->status === 'failed' || $submission->status === 'error') {
 echo html_writer::end_tag('div'); // end card-body
 echo html_writer::end_tag('div'); // end submission-info-card
 
+// Calculate maximum possible score from test cases
+$all_testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id));
+$max_score = 0;
+foreach ($all_testcases as $tc) {
+    // Add null check for points, default to 0 if null or not set
+    $max_score += isset($tc->points) ? (float)$tc->points : 0;
+}
+
+// Prevent division by zero or illogical display if max score is 0
+// Default to 10.0 as a fallback, though this should ideally not happen in a graded context.
+if ($max_score <= 0) {
+    // Consider logging a warning here if possible
+    debugging("Warning: Maximum score calculated as 0 or less for devcode ID {$devcode->id}. Defaulting to 10.", DEBUG_DEVELOPER);
+    $max_score = 10.0; 
+}
+
 // Card kết quả chấm điểm
 echo html_writer::start_tag('div', array('class' => 'devcode-card grading-results-card'));
 echo html_writer::start_tag('div', array('class' => 'devcode-card-header with-score'));
 echo html_writer::tag('h3', get_string('gradingresults', 'devcode'));
-echo html_writer::tag('div', sprintf('%.1f', $submission->score) . '/10', array('class' => 'devcode-score'));
+// Use calculated max_score instead of hardcoded 10
+// Ensure $submission->score is treated as float for formatting consistency
+$current_score = isset($submission->score) ? (float)$submission->score : 0.0;
+echo html_writer::tag('div', sprintf('%.1f / %.1f', $current_score, $max_score), array('class' => 'devcode-score'));
 echo html_writer::end_tag('div');
 
 echo html_writer::start_tag('div', array('class' => 'devcode-card-body'));

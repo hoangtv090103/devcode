@@ -222,6 +222,18 @@ if ($cansubmit) {
         echo \core\output\html_writer::end_tag('tr');
         echo \core\output\html_writer::end_tag('thead');
 
+        // Calculate maximum possible score from test cases once before the loop
+        $all_testcases_for_score = $DB->get_records('devcode_testcases', array('devcodeid' => $devcode->id));
+        $max_score = 0;
+        foreach ($all_testcases_for_score as $tc) {
+            $max_score += isset($tc->points) ? (float)$tc->points : 0;
+        }
+        // Fallback if max score is 0
+        if ($max_score <= 0) {
+            debugging("Warning: Maximum score calculated as 0 or less for devcode ID {$devcode->id} in view.php. Defaulting to 10.", DEBUG_DEVELOPER);
+            $max_score = 10.0; 
+        }
+
         // Rows
         echo \core\output\html_writer::start_tag('tbody');
         foreach ($submissions as $sub) {
@@ -291,8 +303,9 @@ if ($cansubmit) {
             echo \core\output\html_writer::end_tag('td');
             // --- END EDIT: Status color coding ---
 
-            // Điểm số
-            $score_text = isset($sub->score) ? $sub->score . '/10' : '-';
+            // Điểm số - Updated to use calculated max_score
+            $current_score = isset($sub->score) ? (float)$sub->score : 0.0;
+            $score_text = sprintf('%.1f / %.1f', $current_score, $max_score);
             echo \core\output\html_writer::tag('td', $score_text);
 
             // Hành động
