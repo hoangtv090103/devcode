@@ -306,13 +306,21 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
             $rec = (object)[
                 'submission1_id' => $submission->id,
                 'submission2_id' => 0,
-                'similarity_score' => floatval($pair['similarity'] ?? 0),
+                'similarity_score' => round(floatval($pair['similarity'] ?? 0) * 100, 2),
                 'devcodeid' => $devcode->id,
                 'details' => json_encode($pair),
                 'flagged' => 1,
                 'timecreated' => time(),
                 'timemodified' => time()
             ];
+            
+            // Attempt to find the submission ID from the right file path
+            if (isset($pair['rightFilePath']) && preg_match('/submission_(\\d+)\\./', $pair['rightFilePath'], $matches_id)) {
+                $rec->submission2_id = (int)$matches_id[1];
+            } else {
+                debugging("Could not extract submission ID from right path: " . ($pair['rightFilePath'] ?? 'Not set'), DEBUG_DEVELOPER);
+            }
+
             $DB->insert_record('devcode_plagiarism', $rec);
         }
 

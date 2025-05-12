@@ -306,8 +306,7 @@ if ($submission->status === 'plagiarism' || $submission->status === 'plagiarism_
     );
     
     // Get the similarity score from the database, ensuring it's treated as a percentage value
-    $similarity_score_db = $plagiarism_record ? $plagiarism_record->similarity_score : 0;
-    $similarity_percent = $similarity_score_db * 100;
+    $similarity_score = $plagiarism_record ? $plagiarism_record->similarity_score : 0;
     
     // Hiển thị cảnh báo theo mẫu trong hình
     echo html_writer::start_tag('div', array('class' => 'plagiarism-warning'));
@@ -317,7 +316,7 @@ if ($submission->status === 'plagiarism' || $submission->status === 'plagiarism_
     echo html_writer::end_tag('span');
     
     // Thông báo chính với độ tương đồng chính xác từ DB
-    echo html_writer::tag('strong', 'Phát hiện có khả năng đạo văn (độ tương đồng: ' . $similarity_percent . '%)');
+    echo html_writer::tag('strong', 'Phát hiện có khả năng đạo văn (độ tương đồng: ' . $similarity_score . '%)');
     
     // Xem chi tiết với URL
     echo html_writer::start_tag('div', array('class' => 'mt-3'));

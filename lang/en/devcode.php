@@ -371,4 +371,19 @@ $string['error_invalidmemorylimit'] = 'Invalid memory limit. Must be a positive 
 $string['testcasememorylimiterror'] = 'Memory limit must be a positive number (MB).';
 $string['addtestcase'] = 'Add test case';
 
+// Additional strings for plagiarism report
+$string['similaritylevel'] = 'Similarity Level';
+$string['matchedwith'] = 'Matched With';
+
+// Plagiarism review statuses 
+$string['reviewed'] = 'Reviewed';
+$string['pending'] = 'Pending';
+$string['manuallyflagged'] = 'Manually Flagged';
+$string['statusreview'] = 'Review Status';
+
+// Similarity levels
+$string['highsimilarity'] = 'High Similarity';
+$string['mediumsimilarity'] = 'Medium Similarity';
+$string['lowsimilarity'] = 'Low Similarity';
+
 ?>
