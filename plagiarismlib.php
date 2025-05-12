@@ -303,25 +303,64 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
         $DB->update_record('devcode_submissions', $submission);
 
         foreach ($matches as $pair) {
-            $rec = (object)[
-                'submission1_id' => $submission->id,
-                'submission2_id' => 0,
-                'similarity_score' => round(floatval($pair['similarity'] ?? 0) * 100, 2),
-                'devcodeid' => $devcode->id,
-                'details' => json_encode($pair),
-                'flagged' => 1,
-                'timecreated' => time(),
-                'timemodified' => time()
-            ];
-            
-            // Attempt to find the submission ID from the right file path
-            if (isset($pair['rightFilePath']) && preg_match('/submission_(\\d+)\\./', $pair['rightFilePath'], $matches_id)) {
-                $rec->submission2_id = (int)$matches_id[1];
+            $current_submission_id = $submission->id;
+            $other_submission_id = 0;
+
+            // Attempt to find the other submission ID from the right file path
+            if (isset($pair['rightFilePath']) && preg_match('/submission_(\\d+)\\./', $pair['rightFilePath'], $path_matches)) {
+                $other_submission_id = (int)$path_matches[1];
             } else {
-                debugging("Could not extract submission ID from right path: " . ($pair['rightFilePath'] ?? 'Not set'), DEBUG_DEVELOPER);
+                debugging("Could not extract submission ID from right path: " . ($pair['rightFilePath'] ?? 'Not set') . " for current submission ID: " . $current_submission_id, DEBUG_DEVELOPER);
+                continue; // Skip if we can't identify the second submission
             }
 
-            $DB->insert_record('devcode_plagiarism', $rec);
+            // Ensure IDs are different (a submission cannot be plagiarised against itself)
+            if ($current_submission_id == $other_submission_id) {
+                debugging("Skipping plagiarism check against self for submission ID: " . $current_submission_id, DEBUG_DEVELOPER);
+                continue;
+            }
+
+            // Standardize the order of IDs: submission1_id will always be the smaller ID
+            $s1_id = min($current_submission_id, $other_submission_id);
+            $s2_id = max($current_submission_id, $other_submission_id);
+
+            // Check if this pair already exists in the plagiarism table
+            $existing_plagiarism_record = $DB->get_record('devcode_plagiarism', [
+                'submission1_id' => $s1_id,
+                'submission2_id' => $s2_id,
+                'devcodeid' => $devcode->id
+            ]);
+
+            $new_similarity_score = round(floatval($pair['similarity'] ?? 0) * 100, 2);
+            $new_details = json_encode($pair);
+
+            if (!$existing_plagiarism_record) {
+                // If the record does not exist, insert it
+                $record_to_insert = (object)[
+                    'submission1_id' => $s1_id,
+                    'submission2_id' => $s2_id,
+                    'similarity_score' => $new_similarity_score,
+                    'devcodeid' => $devcode->id,
+                    'details' => $new_details,
+                    'flagged' => 1, // Flagged by default when inserted
+                    'timecreated' => time(),
+                    'timemodified' => time()
+                ];
+                $DB->insert_record('devcode_plagiarism', $record_to_insert);
+                debugging("Inserted plagiarism record for pair ({$s1_id}, {$s2_id}) with score {$new_similarity_score}%", DEBUG_DEVELOPER);
+            } else {
+                // If the record exists, update it if the new score is higher or details changed
+                if ($new_similarity_score > $existing_plagiarism_record->similarity_score || $existing_plagiarism_record->details !== $new_details) {
+                     $existing_plagiarism_record->similarity_score = $new_similarity_score;
+                     $existing_plagiarism_record->details = $new_details;
+                     $existing_plagiarism_record->flagged = 1; // Ensure it's flagged if re-detected or score changes
+                     $existing_plagiarism_record->timemodified = time();
+                     $DB->update_record('devcode_plagiarism', $existing_plagiarism_record);
+                     debugging("Updated plagiarism record for pair ({$s1_id}, {$s2_id}) to score {$new_similarity_score}%", DEBUG_DEVELOPER);
+                } else {
+                    debugging("Plagiarism record for pair ({$s1_id}, {$s2_id}) with score {$existing_plagiarism_record->similarity_score}% already exists and new score {$new_similarity_score}% is not higher. No changes made.", DEBUG_DEVELOPER);
+                }
+            }
         }
 
         devcode_update_grades($devcode, $submission->userid);
