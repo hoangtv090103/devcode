@@ -142,7 +142,7 @@ $assignments = $DB->get_records('devcode', array('course' => $course->id), 'name
 
 // Display similarity threshold information
 echo '<div class="threshold-info">';
-echo '<strong>Current similarity threshold:</strong> ' . $devcode->similarity_threshold . '% ';
+echo '<strong>'.get_string('currentsimilaritythreshold', 'mod_devcode').':</strong> ' . $devcode->similarity_threshold . '% ';
 echo '(submissions with similarity score above this value are automatically flagged)';
 echo '</div>';
 
@@ -175,12 +175,12 @@ echo '</div>';
 
 // Filter by similarity score
 echo '<div class="form-group mb-2 mr-2">';
-echo '<label for="simfilter" class="mr-2">Similarity Range: </label>';
+echo '<label for="simfilter" class="mr-2">' . get_string('similarityrange', 'mod_devcode') . ': </label>';
 echo '<select id="simfilter" name="simfilter" class="form-control">';
-echo '<option value="0"' . ($simfilter == 0 ? ' selected' : '') . '>All Scores</option>';
-echo '<option value="1"' . ($simfilter == 1 ? ' selected' : '') . '>High (≥75%)</option>';
-echo '<option value="2"' . ($simfilter == 2 ? ' selected' : '') . '>Medium (50-74%)</option>';
-echo '<option value="3"' . ($simfilter == 3 ? ' selected' : '') . '>Low (<50%)</option>';
+echo '<option value="0"' . ($simfilter == 0 ? ' selected' : '') . '>' . get_string('allscores', 'mod_devcode') . '</option>';
+echo '<option value="1"' . ($simfilter == 1 ? ' selected' : '') . '>' . get_string('highsimilarity', 'mod_devcode') . '</option>';
+echo '<option value="2"' . ($simfilter == 2 ? ' selected' : '') . '>' . get_string('mediumsimilarity', 'mod_devcode') . '</option>';
+echo '<option value="3"' . ($simfilter == 3 ? ' selected' : '') . '>' . get_string('lowsimilarity', 'mod_devcode') . '</option>';
 echo '</select>';
 echo '</div>';
 

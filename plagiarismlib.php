@@ -323,6 +323,9 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
             // Standardize the order of IDs: submission1_id will always be the smaller ID
             $s1_id = min($current_submission_id, $other_submission_id);
             $s2_id = max($current_submission_id, $other_submission_id);
+            
+            // Debug the ID values to verify they're properly ordered
+            debugging("Standardized IDs for plagiarism check: s1_id=$s1_id, s2_id=$s2_id", DEBUG_DEVELOPER);
 
             // Check if this pair already exists in the plagiarism table
             $existing_plagiarism_record = $DB->get_record('devcode_plagiarism', [
@@ -346,8 +349,16 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
                     'timecreated' => time(),
                     'timemodified' => time()
                 ];
-                $DB->insert_record('devcode_plagiarism', $record_to_insert);
-                debugging("Inserted plagiarism record for pair ({$s1_id}, {$s2_id}) with score {$new_similarity_score}%", DEBUG_DEVELOPER);
+                
+                // Double-check values before insert
+                debugging("Inserting plagiarism record with submission1_id={$record_to_insert->submission1_id}, submission2_id={$record_to_insert->submission2_id}", DEBUG_DEVELOPER);
+                
+                try {
+                    $DB->insert_record('devcode_plagiarism', $record_to_insert);
+                    debugging("Successfully inserted plagiarism record for pair ({$s1_id}, {$s2_id}) with score {$new_similarity_score}%", DEBUG_DEVELOPER);
+                } catch (Exception $e) {
+                    debugging("Failed to insert plagiarism record: " . $e->getMessage(), DEBUG_DEVELOPER);
+                }
             } else {
                 // If the record exists, update it if the new score is higher or details changed
                 if ($new_similarity_score > $existing_plagiarism_record->similarity_score || $existing_plagiarism_record->details !== $new_details) {
@@ -355,8 +366,16 @@ function devcode_check_plagiarism_dolos($submission, $others, $language, $devcod
                      $existing_plagiarism_record->details = $new_details;
                      $existing_plagiarism_record->flagged = 1; // Ensure it's flagged if re-detected or score changes
                      $existing_plagiarism_record->timemodified = time();
-                     $DB->update_record('devcode_plagiarism', $existing_plagiarism_record);
-                     debugging("Updated plagiarism record for pair ({$s1_id}, {$s2_id}) to score {$new_similarity_score}%", DEBUG_DEVELOPER);
+                     
+                     // Double-check values before update
+                     debugging("Updating plagiarism record with ID={$existing_plagiarism_record->id}, submission1_id={$existing_plagiarism_record->submission1_id}, submission2_id={$existing_plagiarism_record->submission2_id}", DEBUG_DEVELOPER);
+                     
+                     try {
+                         $DB->update_record('devcode_plagiarism', $existing_plagiarism_record);
+                         debugging("Updated plagiarism record for pair ({$s1_id}, {$s2_id}) to score {$new_similarity_score}%", DEBUG_DEVELOPER);
+                     } catch (Exception $e) {
+                         debugging("Failed to update plagiarism record: " . $e->getMessage(), DEBUG_DEVELOPER);
+                     }
                 } else {
                     debugging("Plagiarism record for pair ({$s1_id}, {$s2_id}) with score {$existing_plagiarism_record->similarity_score}% already exists and new score {$new_similarity_score}% is not higher. No changes made.", DEBUG_DEVELOPER);
                 }

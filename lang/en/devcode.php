@@ -386,4 +386,12 @@ $string['highsimilarity'] = 'High Similarity';
 $string['mediumsimilarity'] = 'Medium Similarity';
 $string['lowsimilarity'] = 'Low Similarity';
 
+$string['currentsimilaritythreshold'] = 'Current similarity threshold';
+$string['similaritythreshold'] = 'Similarity threshold';
+$string['similaritythreshold_help'] = 'Set the percentage threshold for code similarity. Submissions with similarity above this threshold will be flagged as potential plagiarism.';
+$string['similaritythresholderror'] = 'Threshold must be a number between 1 and 100';
+$string['similarityrange'] = 'Similarity range';
+$string['similarityrange_help'] = 'Select the similarity range to filter the report. Can choose all, high, medium, or low.';
+
+$string['allscores'] = 'All scores';
 ?>

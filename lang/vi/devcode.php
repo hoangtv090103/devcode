@@ -57,7 +57,7 @@ $string['maxsimilarity'] = 'Mức tương đồng tối đa';
 $string['matchescount'] = 'Số lượng trùng khớp';
 $string['invalidaction'] = 'Hành động không hợp lệ.';
 $string['invalidaccess'] = 'Truy cập không hợp lệ.';
-$string['plagiarismnotenabled'] = 'Chức năng phát hiện đạo văn chưa được bật cho bài tập này';
+$string['plagiarismnotenabled'] = 'Tính năng phát hiện đạo văn chưa được bật cho bài tập này.';
 $string['allplagiarismreports'] = 'Tất cả báo cáo đạo văn';
 $string['noplagiarismdetected'] = 'Không phát hiện đạo văn.';
 $string['assignment'] = 'Bài tập';
@@ -375,11 +375,12 @@ $string['addtestcase'] = 'Thêm trường hợp thử nghiệm';
 
 // Chuỗi bổ sung cho trang báo cáo đạo văn
 $string['search'] = 'Tìm kiếm';
-$string['filterbyassignment'] = 'Lọc theo bài tập';
-$string['allassignments'] = 'Tất cả bài tập';
-$string['apply'] = 'Áp dụng';
-$string['noplagiarismfound'] = 'Không phát hiện đạo văn';
-$string['plagiarismreport'] = 'Báo cáo đạo văn';
+$string['filterreport'] = 'Lọc báo cáo';
+$string['similarityrange'] = 'Phạm vi tương đồng';
+$string['allscores'] = 'Tất cả điểm số';
+$string['highsimilarity'] = 'Cao (≥75%)';
+$string['mediumsimilarity'] = 'Trung bình (50-74%)';
+$string['lowsimilarity'] = 'Thấp (<50%)';
 $string['submissionid'] = 'Mã bài nộp';
 $string['student'] = 'Sinh viên';
 $string['assignment'] = 'Bài tập';
@@ -387,17 +388,27 @@ $string['submissiondate'] = 'Ngày nộp';
 $string['actions'] = 'Hành động';
 $string['viewdetails'] = 'Xem chi tiết';
 $string['back'] = 'Quay lại';
-$string['plagiarismnotenabled'] = 'Chức năng phát hiện đạo văn chưa được bật cho bài tập này';
+$string['plagiarismnotenabled'] = 'Tính năng phát hiện đạo văn chưa được bật cho bài tập này.';
 $string['similaritylevel'] = 'Mức độ tương đồng';
 $string['matchedwith'] = 'Trùng khớp với';
 
 // Trạng thái đánh giá đạo văn
 $string['reviewed'] = 'Đã xem xét';
 $string['pending'] = 'Đang chờ';
-$string['manuallyflagged'] = 'Đánh dấu thủ công';
+$string['manuallyflagged'] = 'Gắn cờ thủ công';
 $string['statusreview'] = 'Trạng thái xem xét';
 
 // Mức độ tương đồng
 $string['highsimilarity'] = 'Tương đồng cao';
 $string['mediumsimilarity'] = 'Tương đồng trung bình';
 $string['lowsimilarity'] = 'Tương đồng thấp';
+
+$string['currentsimilaritythreshold'] = 'Mức tương đồng hiện tại';
+$string['similaritythreshold'] = 'Mức tương đồng';
+$string['similaritythreshold_help'] = 'Đặt ngưỡng tương đồng theo phần trăm. Bài nộp có tương đồng trên ngưỡng này sẽ được đánh dấu là đạo văn.';
+$string['similaritythresholderror'] = 'Ngưỡng phải là một số từ 1 đến 100';
+
+$string['similarityrange'] = 'Phạm vi tương đồng';
+$string['similarityrange_help'] = 'Chọn phạm vi tương đồng để lọc báo cáo. Có thể chọn tất cả, cao, trung bình hoặc thấp.';
+
+$string['allscores'] = 'Tất cả';
