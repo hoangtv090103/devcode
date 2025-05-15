@@ -17,9 +17,6 @@
                 <!-- Thêm các trường mới cho các tính năng -->
                 <FIELD NAME="enable_plagiarism" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether plagiarism detection is enabled"/>
                 <FIELD NAME="similarity_threshold" TYPE="int" LENGTH="3" NOTNULL="true" DEFAULT="80" SEQUENCE="false" COMMENT="Threshold percentage for flagging plagiarism"/>
-                <FIELD NAME="enable_leaderboard" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether leaderboard is enabled"/>
-                <FIELD NAME="leaderboard_size" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="10" SEQUENCE="false" COMMENT="Number of top students to show on leaderboard"/>
-                <FIELD NAME="leaderboard_anonymous" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether leaderboard should hide student names"/>
                 <FIELD NAME="allowed_attempts" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Maximum submission attempts (0 for unlimited)"/>
                 <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
@@ -48,7 +45,7 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id"/>
+                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id" ONDELETE="cascade"/>
             </KEYS>
         </TABLE>
         
@@ -70,8 +67,8 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id"/>
-                <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id" ONDELETE="cascade"/>
+                <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id" ONDELETE="cascade"/>
             </KEYS>
         </TABLE>
         
@@ -89,8 +86,8 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-                <KEY NAME="submissionid" TYPE="foreign" FIELDS="submissionid" REFTABLE="devcode_submissions" REFFIELDS="id"/>
-                <KEY NAME="testcaseid" TYPE="foreign" FIELDS="testcaseid" REFTABLE="devcode_testcases" REFFIELDS="id"/>
+                <KEY NAME="submissionid" TYPE="foreign" FIELDS="submissionid" REFTABLE="devcode_submissions" REFFIELDS="id" ONDELETE="cascade"/>
+                <KEY NAME="testcaseid" TYPE="foreign" FIELDS="testcaseid" REFTABLE="devcode_testcases" REFFIELDS="id" ONDELETE="cascade"/>
             </KEYS>
         </TABLE>
         <!-- Bảng mới cho phát hiện đạo văn -->
@@ -109,9 +106,9 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id"/>
-                <KEY NAME="submission1_id" TYPE="foreign" FIELDS="submission1_id" REFTABLE="devcode_submissions" REFFIELDS="id"/>
-                <KEY NAME="submission2_id" TYPE="foreign" FIELDS="submission2_id" REFTABLE="devcode_submissions" REFFIELDS="id"/>
+                <KEY NAME="devcodeid" TYPE="foreign" FIELDS="devcodeid" REFTABLE="devcode" REFFIELDS="id" ONDELETE="cascade"/>
+                <KEY NAME="submission1_id" TYPE="foreign" FIELDS="submission1_id" REFTABLE="devcode_submissions" REFFIELDS="id" ONDELETE="cascade"/>
+                <KEY NAME="submission2_id" TYPE="foreign" FIELDS="submission2_id" REFTABLE="devcode_submissions" REFFIELDS="id" ONDELETE="cascade"/>
             </KEYS>
             <INDEXES>
                 <INDEX NAME="submissions_pair" UNIQUE="true" FIELDS="submission1_id, submission2_id"/>
@@ -133,8 +130,8 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-                <KEY NAME="courseid" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
-                <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+                <KEY NAME="courseid" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id" ONDELETE="cascade"/>
+                <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id" ONDELETE="cascade"/>
             </KEYS>
             <INDEXES>
                 <INDEX NAME="courseid_userid" UNIQUE="true" FIELDS="courseid, userid"/>

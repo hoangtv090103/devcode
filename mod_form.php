@@ -5,7 +5,7 @@ require_once($CFG->dirroot . '/course/moodleform_mod.php');
 require_once($CFG->dirroot . '/mod/devcode/lib.php');
 require_once($CFG->libdir . '/filelib.php');
 require_once($CFG->libdir . '/accesslib.php');
-require_once($CFG->libdir . '/weblib.php'); // For moodle_url
+require_once($CFG->libdir . '/weblib.php');
 
 /**
  * Module instance settings form
@@ -47,6 +47,20 @@ class mod_devcode_mod_form extends moodleform_mod
         // Allow submissions from date
         $mform->addElement('date_time_selector', 'allowsubmissionsfromdate', get_string('allowsubmissionsfromdate', 'devcode'), array('optional' => true));
 
+        // Cut-off date (if needed)
+        $mform->addElement('date_time_selector', 'cutoffdate', get_string('cutoffdate', 'devcode'), array('optional' => true));
+        $mform->addHelpButton('cutoffdate', 'cutoffdate', 'devcode');
+
+        // Maximum attempts allowed
+        $attemptoptions = array(
+            0 => get_string('unlimited', 'devcode'),
+            1 => '1', 2 => '2', 3 => '3', 4 => '4', 5 => '5',
+            10 => '10', 20 => '20', 50 => '50', 100 => '100'
+        );
+        $mform->addElement('select', 'allowed_attempts', get_string('allowedattempts', 'devcode'), $attemptoptions);
+        $mform->setDefault('allowed_attempts', 0);
+        $mform->addHelpButton('allowed_attempts', 'allowedattempts', 'devcode');
+
         // Plagiarism detection settings
         $mform->addElement('header', 'plagiarismsettings', get_string('plagiarismsettings', 'devcode'));
 
@@ -79,10 +93,11 @@ class mod_devcode_mod_form extends moodleform_mod
 
         // Export button for existing assignments
         if (isset($this->_instance) && $this->_instance) {
-            $export_url = new \moodle_url('/mod/devcode/export_testcases.php', array('id' => $this->_cm->id));
-            $export_button = \core\output\html_writer::link(
-                $export_url,
+            $exporturl = new \moodle_url('/mod/devcode/export_testcases.php', array('id' => $this->_cm->id));
+            $export_button = $OUTPUT->single_button(
+                $exporturl,
                 get_string('testcaseexport', 'devcode'),
+                'get',
                 array('class' => 'btn btn-secondary', 'target' => '_blank')
             );
             $mform->addElement('static', 'exportbutton', get_string('testcaseexport', 'devcode'), $export_button);
@@ -358,6 +373,14 @@ class mod_devcode_mod_form extends moodleform_mod
                 if ($devcode) {
                     $default_values['enable_plagiarism'] = $devcode->enable_plagiarism;
                     $default_values['similarity_threshold'] = $devcode->similarity_threshold;
+                    
+                    // Set submission settings defaults
+                    $default_values['allowed_attempts'] = $devcode->allowed_attempts ?? 0;
+                    
+                    // Additional settings
+                    if (isset($devcode->cutoffdate)) {
+                        $default_values['cutoffdate'] = $devcode->cutoffdate;
+                    }
                 }
             }
         }
@@ -424,6 +447,17 @@ class mod_devcode_mod_form extends moodleform_mod
             if (!is_numeric($threshold) || $threshold < 1 || $threshold > 100) {
                 $errors['similarity_threshold'] = get_string('similaritythresholderror', 'devcode');
             }
+        }
+
+        // Validate dates
+        if (!empty($data['allowsubmissionsfromdate']) && !empty($data['duedate']) && 
+            $data['allowsubmissionsfromdate'] > $data['duedate']) {
+            $errors['allowsubmissionsfromdate'] = get_string('allowsubmissionsfromdate_error', 'devcode');
+        }
+
+        if (!empty($data['duedate']) && !empty($data['cutoffdate']) && 
+            $data['duedate'] > $data['cutoffdate']) {
+            $errors['cutoffdate'] = get_string('cutoffdate_error', 'devcode');
         }
 
         // Validate test case file (if uploaded)
