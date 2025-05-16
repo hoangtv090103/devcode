@@ -19,6 +19,10 @@ require_once($CFG->libdir.'/gradelib.php');
 require_once(dirname(__FILE__) . '/locallib.php');
 require_once(dirname(__FILE__) . '/apilib.php');
 require_once(dirname(__FILE__) . '/gradelib.php');
+
+// Import context classes
+use \core\context\module as context_module;
+use \core\context\user as context_user;
 require_once(dirname(__FILE__) . '/plagiarismlib.php');
 
 require_once(__DIR__ . '/judge0_api.php');
@@ -316,13 +320,38 @@ function devcode_delete_instance($id)
         return false;
     }
 
-    // Delete all submissions
+    // Get all submissions for this devcode instance to delete related records
+    $submissions = $DB->get_records('devcode_submissions', array('devcodeid' => $id));
+    
+    // For each submission, delete related records
+    foreach ($submissions as $submission) {
+        // Delete submission results
+        $DB->delete_records('devcode_submission_results', array('submissionid' => $submission->id));
+    }
+    
+    // Delete plagiarism records (need to delete for both submission1_id and submission2_id)
+    $DB->delete_records('devcode_plagiarism', array('devcodeid' => $id));
+    
+    // Now delete all submissions
     $DB->delete_records('devcode_submissions', array('devcodeid' => $id));
 
     // Delete all test cases
     $DB->delete_records('devcode_testcases', array('devcodeid' => $id));
+    
+    // For completeness, also clean up any student stats related to this assignment
+    // (This depends on your implementation, may need to recalculate stats rather than delete)
+    $course_id = $devcode->course;
+    if ($course_id) {
+        // If your stats tables contain specific assignment references, clean them here
+        // For example, update devcode_student_stats table
+        $DB->delete_records('devcode_student_stats', array('courseid' => $course_id));
+        
+        // You may also want to delete/update report_devcodereports_stats records
+        // Since they're indexed by courseid and userid, you'd need additional logic
+        // to identify which ones are related to this specific assignment
+    }
 
-    // Delete the devcode instance
+    // Finally delete the devcode instance
     $DB->delete_records('devcode', array('id' => $id));
 
     return true;
