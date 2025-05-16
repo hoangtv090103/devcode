@@ -394,4 +394,9 @@ $string['similarityrange'] = 'Similarity range';
 $string['similarityrange_help'] = 'Select the similarity range to filter the report. Can choose all, high, medium, or low.';
 
 $string['allscores'] = 'All scores';
+
+// Test case template
+$string['testcasetemplate'] = 'Test case template';
+$string['downloadtestcasetemplate'] = 'Download test case template';
+$string['testcasetemplatedesc'] = 'Download a template file to help you create test cases for this assignment';
 ?>

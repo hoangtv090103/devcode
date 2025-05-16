@@ -86,6 +86,35 @@ class mod_devcode_mod_form extends moodleform_mod
                 array('class' => 'btn btn-secondary', 'target' => '_blank')
             );
             $mform->addElement('static', 'exportbutton', get_string('testcaseexport', 'devcode'), $export_button);
+        } else {
+            // Download template button for new assignments
+            $template_url = new \moodle_url('/mod/devcode/testcase_template.php');
+            $template_button = \core\output\html_writer::link(
+                $template_url,
+                get_string('downloadtestcasetemplate', 'devcode'),
+                array('class' => 'btn btn-secondary', 'target' => '_blank')
+            );
+            $mform->addElement('static', 'templatebutton', get_string('testcasetemplate', 'devcode'), $template_button);
+            
+            // Format options (JSON/TXT)
+            $template_json_url = new \moodle_url('/mod/devcode/testcase_template.php', array('format' => 'json'));
+            $template_txt_url = new \moodle_url('/mod/devcode/testcase_template.php', array('format' => 'txt'));
+            
+            $format_buttons = \core\output\html_writer::start_div('template-format-buttons');
+            $format_buttons .= \core\output\html_writer::link(
+                $template_json_url,
+                get_string('downloadasjson', 'devcode', 'JSON'),
+                array('class' => 'btn btn-sm btn-outline-secondary ml-2', 'target' => '_blank')
+            );
+            $format_buttons .= ' ';
+            $format_buttons .= \core\output\html_writer::link(
+                $template_txt_url,
+                get_string('downloadastxt', 'devcode', 'TXT'),
+                array('class' => 'btn btn-sm btn-outline-secondary', 'target' => '_blank')
+            );
+            $format_buttons .= \core\output\html_writer::end_div();
+            
+            $mform->addElement('static', 'templateformats', '', $format_buttons);
         }
 
         // File manager for uploading test case file
