@@ -328,9 +328,18 @@ class mod_devcode_mod_form extends moodleform_mod
         if (isset($this->_instance) && $this->_instance) {
             // Prepare file manager for test case file uploads
             $draftitemid = file_get_submitted_draft_itemid('testcasefile');
+            
+            // Check if we have any files in the area
+            $fs = get_file_storage();
+            $has_files = $fs->file_exists($this->context->id, 'mod_devcode', 'testcasefile', 0, '/', '.');
+            
             file_prepare_draft_area($draftitemid, $this->context->id, 'mod_devcode', 'testcasefile', 0,
                 array('subdirs' => 0, 'maxbytes' => $this->_course->maxbytes, 'maxfiles' => 1));
-            $default_values['testcasefile'] = $draftitemid;
+            
+            // Only set the draft item id if there are actually files
+            if ($has_files) {
+                $default_values['testcasefile'] = $draftitemid;
+            }
             
             // Load existing test cases
             $testcases = $DB->get_records('devcode_testcases', array('devcodeid' => $this->_instance), 'id ASC');

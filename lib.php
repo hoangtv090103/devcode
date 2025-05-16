@@ -178,6 +178,12 @@ function devcode_add_instance($data, $mform = null)
         
         // Process test case file if exists
         $result = devcode_process_testcase_file($context->id, $data->testcasefile, $data->id);
+        
+        // Delete the uploaded file after successful processing
+        if ($result['success']) {
+            $fs = get_file_storage();
+            $fs->delete_area_files($context->id, 'mod_devcode', 'testcasefile');
+        }
     }
 
     // Lưu test cases thủ công
@@ -246,6 +252,12 @@ function devcode_update_instance($data, $mform = null)
         
         // Process test case file if exists
         $result = devcode_process_testcase_file($context->id, $data->testcasefile, $data->id);
+
+        // Delete the uploaded file after successful processing
+        if ($result['success']) {
+            $fs = get_file_storage();
+            $fs->delete_area_files($context->id, 'mod_devcode', 'testcasefile');
+        }
     }
 
     // Theo dõi các test case đã được cập nhật (để xóa bỏ các test case không được cập nhật)
