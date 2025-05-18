@@ -377,7 +377,7 @@ $string['addtestcase'] = 'Thêm trường hợp thử nghiệm';
 $string['search'] = 'Tìm kiếm';
 $string['filterreport'] = 'Lọc báo cáo';
 $string['similarityrange'] = 'Phạm vi tương đồng';
-$string['allscores'] = 'Tất cả điểm số';
+$string['allscores'] = 'Tất cả';
 $string['highsimilarity'] = 'Cao (≥75%)';
 $string['mediumsimilarity'] = 'Trung bình (50-74%)';
 $string['lowsimilarity'] = 'Thấp (<50%)';
@@ -412,3 +412,8 @@ $string['similarityrange'] = 'Phạm vi tương đồng';
 $string['similarityrange_help'] = 'Chọn phạm vi tương đồng để lọc báo cáo. Có thể chọn tất cả, cao, trung bình hoặc thấp.';
 
 $string['allscores'] = 'Tất cả';
+
+// Test case template
+$string['testcasetemplate'] = 'Mẫu test case';
+$string['downloadtestcasetemplate'] = 'Tải xuống mẫu test case';
+$string['testcasetemplatedesc'] = 'Tải xuống file mẫu để giúp bạn tạo test case cho bài tập này';
