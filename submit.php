@@ -59,8 +59,8 @@ $PAGE->activityheader->set_attrs($activityheader);
 $PAGE->requires->css('/mod/devcode/styles.css');
 
 // Load JavaScript modules - bỏ comment dòng này để sử dụng JS modules
-// $PAGE->requires->js_call_amd('mod_devcode/code_editor', 'init');
-// $PAGE->requires->js_call_amd('mod_devcode/tabs', 'init');
+$PAGE->requires->js_call_amd('mod_devcode/code_editor', 'init');
+$PAGE->requires->js_call_amd('mod_devcode/tabs', 'init');
 
 // Add file upload styles via JavaScript
 $PAGE->requires->js_init_code("
