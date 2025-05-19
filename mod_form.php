@@ -490,6 +490,11 @@ class mod_devcode_mod_form extends moodleform_mod
                             $errors['testcasefile'] = get_string('testcasefileerror', 'devcode') . ': ' . json_last_error_msg();
                         } else if (!is_array($json_data)) {
                             $errors['testcasefile'] = get_string('testcasefileerror', 'devcode') . ': ' . get_string('testcasefileformatdesc', 'devcode');
+                        } else {
+                            // Check if JSON has test_cases structure
+                            if (isset($json_data['test_cases']) && !is_array($json_data['test_cases'])) {
+                                $errors['testcasefile'] = get_string('testcasefileerror', 'devcode') . ': test_cases must be an array';
+                            }
                         }
                     }
                 }

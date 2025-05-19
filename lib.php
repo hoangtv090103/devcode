@@ -74,67 +74,86 @@ function devcode_process_testcase_file($contextid, $draftitemid, $devcodeid) {
     global $DB, $USER;
     
     $fs = get_file_storage();
-    $usercontext = context_user::instance($USER->id);
+    $usercontext = \core\context\user::instance($USER->id);
     
-    // Get the files from the draft area
+    // Get the uploaded file from draft area
     $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'id', false);
     
     if (empty($files)) {
-        return ['success' => false, 'message' => get_string('testcasefileempty', 'devcode'), 'count' => 0];
+        return false;
     }
     
-    // Should only be one file
     $file = reset($files);
+    $filename = $file->get_filename();
+    $extension = pathinfo($filename, PATHINFO_EXTENSION);
     
-    // Read file content
+    if ($extension !== 'json' && $extension !== 'txt') {
+        return false;
+    }
+    
+    // Get file content
     $content = $file->get_content();
+    
     if (empty($content)) {
-        return ['success' => false, 'message' => get_string('testcasefileempty', 'devcode'), 'count' => 0];
+        return false;
     }
     
-    // Parse JSON content
-    $testcases = json_decode($content, true);
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($testcases)) {
-        return ['success' => false, 'message' => get_string('testcasefileerror', 'devcode') . ': ' . json_last_error_msg(), 'count' => 0];
-    }
+    $testcases = array();
     
-    // Validate each test case
-    $validtestcases = [];
-    foreach ($testcases as $testcase) {
-        // Check required fields
-        if (!isset($testcase['input']) || !isset($testcase['output'])) {
-            continue;
+    // Process based on file type
+    if ($extension === 'json') {
+        $data = json_decode($content, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+            return false;
         }
         
-        $validtestcase = new stdClass();
-        $validtestcase->devcodeid = $devcodeid;
-        $validtestcase->input = $testcase['input'];
-        $validtestcase->output = $testcase['output'];
-        $validtestcase->points = isset($testcase['points']) ? floatval($testcase['points']) : 10.0;
-        $validtestcase->time_limit = isset($testcase['time_limit']) ? intval($testcase['time_limit']) : 3000;
-        $validtestcase->visible_to_student = isset($testcase['visible_to_student']) ? intval($testcase['visible_to_student']) : 0;
-        $validtestcase->description = isset($testcase['description']) ? $testcase['description'] : '';
-        $validtestcase->timecreated = time();
-        $validtestcase->timemodified = time();
+        // Check if it has the test_cases array directly
+        if (isset($data['test_cases']) && is_array($data['test_cases'])) {
+            $testcases = $data['test_cases'];
+        } else if (is_array($data) && isset($data[0]['input'])) {
+            // The JSON is just an array of test cases
+            $testcases = $data;
+        }
+    } else {
+        // Process TXT file - simple format, each line is a test case
+        $lines = explode("\n", $content);
+        // Process TXT format (implementation depends on your specific format)
+        // ...
+    }
+    
+    // Clear any old test cases for this activity
+    $DB->delete_records('devcode_testcases', array('devcodeid' => $devcodeid));
+    
+    // Insert the new test cases
+    $testcase_count = 0;
+    foreach ($testcases as $testcase) {
+        if (!isset($testcase['input']) || !isset($testcase['output'])) {
+            continue; // Skip invalid test cases
+        }
         
-        $validtestcases[] = $validtestcase;
+        $record = new \stdClass();
+        $record->devcodeid = $devcodeid;
+        $record->input = $testcase['input'];
+        $record->output = $testcase['output'];
+        $record->points = isset($testcase['points']) ? $testcase['points'] : 10;
+        $record->time_limit = isset($testcase['time_limit']) ? $testcase['time_limit'] : 1000;
+        
+        // Convert memory limit from MB to KB if provided
+        if (isset($testcase['memory_limit'])) {
+            $record->memory_limit = (int)($testcase['memory_limit'] * 1024);
+        } else {
+            $record->memory_limit = 128 * 1024; // Default: 128 MB
+        }
+        
+        $record->description = isset($testcase['description']) ? $testcase['description'] : '';
+        $record->visible_to_student = isset($testcase['visible_to_student']) ? $testcase['visible_to_student'] : 0;
+        
+        $DB->insert_record('devcode_testcases', $record);
+        $testcase_count++;
     }
     
-    // If no valid test cases, return error
-    if (empty($validtestcases)) {
-        return ['success' => false, 'message' => get_string('testcasefileempty', 'devcode'), 'count' => 0];
-    }
-    
-    // Save valid test cases to database
-    foreach ($validtestcases as $testcase) {
-        $DB->insert_record('devcode_testcases', $testcase);
-    }
-    
-    return [
-        'success' => true, 
-        'message' => get_string('testcasefileprocessed', 'devcode', count($validtestcases)), 
-        'count' => count($validtestcases)
-    ];
+    return $testcase_count;
 }
 
 /**
@@ -146,68 +165,68 @@ function devcode_process_testcase_file($contextid, $draftitemid, $devcodeid) {
  */
 function devcode_add_instance($data, $mform = null)
 {
-    global $DB;
-
-    // Xử lý dữ liệu trước khi lưu
-    $data->timemodified = time();
+    global $DB, $CFG;
+    
+    require_once($CFG->dirroot . '/mod/devcode/locallib.php');
+    
     $data->timecreated = time();
-
-    // Đảm bảo programming_language là chuỗi
-    if (isset($data->programming_language)) {
-        $data->programming_language = strval($data->programming_language);
+    $data->timemodified = time();
+    
+    // Set default values if not provided
+    if (!isset($data->enable_plagiarism)) {
+        $data->enable_plagiarism = 0;
     }
-
-    // Xử lý dữ liệu từ trình soạn thảo (editor)
-    if (isset($data->intro) && is_array($data->intro)) {
-        $data->intro = $data->intro['text'];
+    if (!isset($data->similarity_threshold)) {
+        $data->similarity_threshold = 80;
     }
-
-    if (isset($data->introformat) && is_array($data->introformat)) {
-        $data->introformat = FORMAT_HTML;
-    } else if (!isset($data->introformat)) {
-        $data->introformat = FORMAT_HTML;
-    }
-
-    // Chèn bản ghi
+    
+    // Insert the record
     $data->id = $DB->insert_record('devcode', $data);
     
-    // Save file
+    // Handle test case file upload
     if (!empty($data->testcasefile)) {
-        $context = context_module::instance($data->coursemodule);
-        file_save_draft_area_files($data->testcasefile, $context->id, 'mod_devcode', 'testcasefile', 0);
-        
-        // Process test case file if exists
-        $result = devcode_process_testcase_file($context->id, $data->testcasefile, $data->id);
-        
-        // Delete the uploaded file after successful processing
-        if ($result['success']) {
-            $fs = get_file_storage();
-            $fs->delete_area_files($context->id, 'mod_devcode', 'testcasefile');
-        }
+        $contextid = context_module::instance($data->coursemodule)->id;
+        $testcase_count = devcode_process_testcase_file($contextid, $data->testcasefile, $data->id);
     }
-
-    // Lưu test cases thủ công
+    
+    // Process test cases that were manually entered
     if (isset($data->testcase_input) && is_array($data->testcase_input)) {
-        for ($i = 0; $i < count($data->testcase_input); $i++) {
-            if (empty($data->testcase_input[$i]) && empty($data->testcase_output[$i])) {
-                continue; // Bỏ qua test case trống
+        foreach ($data->testcase_input as $key => $input) {
+            // Skip test cases with empty input and output
+            if (empty(trim($input)) && empty(trim($data->testcase_output[$key]))) {
+                continue;
             }
-
+            
             $testcase = new stdClass();
             $testcase->devcodeid = $data->id;
-            $testcase->input = $data->testcase_input[$i];
-            $testcase->output = $data->testcase_output[$i];
-            $testcase->points = isset($data->testcase_points[$i]) ? floatval($data->testcase_points[$i]) : 10.0;
-            $testcase->time_limit = isset($data->testcase_time_limit[$i]) ? intval($data->testcase_time_limit[$i]) : 3000;
-            $testcase->visible_to_student = isset($data->testcase_visible[$i]) ? intval($data->testcase_visible[$i]) : 0;
-            $testcase->description = isset($data->testcase_description[$i]) ? $data->testcase_description[$i] : '';
+            $testcase->input = $input;
+            $testcase->output = isset($data->testcase_output[$key]) ? $data->testcase_output[$key] : '';
+            $testcase->points = isset($data->testcase_points[$key]) ? $data->testcase_points[$key] : 10;
+            $testcase->time_limit = isset($data->testcase_time_limit[$key]) ? $data->testcase_time_limit[$key] : 1000;
+            $testcase->memory_limit = isset($data->testcase_memory_limit[$key]) ? $data->testcase_memory_limit[$key] : 128 * 1024; // Default: 128 MB
+            $testcase->visible_to_student = isset($data->testcase_visible[$key]) ? $data->testcase_visible[$key] : 0;
+            $testcase->description = isset($data->testcase_description[$key]) ? $data->testcase_description[$key] : '';
             $testcase->timecreated = time();
             $testcase->timemodified = time();
-
+            
             $DB->insert_record('devcode_testcases', $testcase);
         }
     }
-
+    
+    // Process files for the intro field
+    if (isset($data->introeditor)) {
+        $draftitemid = $data->introeditor['itemid'];
+        $data->id = $data->id;
+        $data->coursemodule = $data->coursemodule;
+        $data->intro = $data->introeditor['text'];
+        $data->introformat = $data->introeditor['format'];
+        $data = file_postupdate_standard_editor($data, 'intro', array('trusttext' => true), context_module::instance($data->coursemodule), 'mod_devcode', 'intro', 0);
+        $DB->update_record('devcode', $data);
+    }
+    
+    // Create grade item for this activity
+    devcode_grade_item_update($data);
+    
     return $data->id;
 }
 
@@ -220,101 +239,91 @@ function devcode_add_instance($data, $mform = null)
  */
 function devcode_update_instance($data, $mform = null)
 {
-    global $DB;
-
-    // Xử lý dữ liệu trước khi cập nhật
+    global $DB, $CFG;
+    
+    require_once($CFG->dirroot . '/mod/devcode/locallib.php');
+    
     $data->timemodified = time();
     $data->id = $data->instance;
-
-    // Đảm bảo programming_language là chuỗi
-    if (isset($data->programming_language)) {
-        $data->programming_language = strval($data->programming_language);
-    }
-
-    // Xử lý dữ liệu từ trình soạn thảo (editor)
-    if (isset($data->intro) && is_array($data->intro)) {
-        $data->intro = $data->intro['text'];
-    }
-
-    if (isset($data->introformat) && is_array($data->introformat)) {
-        $data->introformat = FORMAT_HTML;
-    } else if (!isset($data->introformat)) {
-        $data->introformat = FORMAT_HTML;
-    }
-
-    // Cập nhật bản ghi
+    
+    // Update the main record
     $DB->update_record('devcode', $data);
     
-    // Save uploaded testcase file
+    $contextid = context_module::instance($data->coursemodule)->id;
+    
+    // Handle test case file upload
     if (!empty($data->testcasefile)) {
-        $context = context_module::instance($data->coursemodule);
-        file_save_draft_area_files($data->testcasefile, $context->id, 'mod_devcode', 'testcasefile', 0);
-        
-        // Process test case file if exists
-        $result = devcode_process_testcase_file($context->id, $data->testcasefile, $data->id);
-
-        // Delete the uploaded file after successful processing
-        if ($result['success']) {
-            $fs = get_file_storage();
-            $fs->delete_area_files($context->id, 'mod_devcode', 'testcasefile');
+        // Process and add the test cases from the uploaded file
+        $testcase_count = devcode_process_testcase_file($contextid, $data->testcasefile, $data->id);
+    }
+    
+    // Handle existing test cases - check if any are marked for deletion 
+    if (!empty($data->instance)) {
+        // Loop through the testcase_delete fields looking for test cases to delete
+        foreach ($_POST as $key => $value) {
+            if (preg_match('/^testcase_delete_(\d+)$/', $key, $matches) && $value == 1) {
+                $testcaseid = $matches[1];
+                // Delete the test case if it belongs to this instance
+                $DB->delete_records_select(
+                    'devcode_testcases', 
+                    'id = ? AND devcodeid = ?', 
+                    array($testcaseid, $data->id)
+                );
+            }
         }
     }
-
-    // Theo dõi các test case đã được cập nhật (để xóa bỏ các test case không được cập nhật)
-    $updated_ids = array();
-
-    // Lưu các test case từ form
+    
+    // Process manually entered test cases
     if (isset($data->testcase_input) && is_array($data->testcase_input)) {
-        // Loop through each test case
-        for ($key = 0; $key < count($data->testcase_input); $key++) {
-            // Check if test case is marked for deletion
-            if (!empty($data->testcase_delete[$key])) {
-                // If test case has an ID, delete it from database
-                if (!empty($data->testcase_id[$key])) {
-                    $DB->delete_records('devcode_testcases', array('id' => $data->testcase_id[$key]));
-                    
-                    // Debug log
-                    error_log('Deleted testcase ID: ' . $data->testcase_id[$key]);
-                }
-                continue; // Skip to next test case
-            }
-            
-            // Skip empty test cases
-            if (empty($data->testcase_input[$key]) && empty($data->testcase_output[$key])) {
+        foreach ($data->testcase_input as $key => $input) {
+            // Skip test cases with empty input and output
+            if (empty(trim($input)) && empty(trim($data->testcase_output[$key]))) {
                 continue;
             }
             
-            // Set up test case data
+            // Check if we have the ID for this test case
+            $testcaseid = isset($data->testcase_id[$key]) ? $data->testcase_id[$key] : 0;
+            
+            // Check if marked for deletion
+            if (!empty($data->testcase_delete[$key])) {
+                if ($testcaseid) {
+                    $DB->delete_records('devcode_testcases', array('id' => $testcaseid, 'devcodeid' => $data->id));
+                }
+                continue;
+            }
+            
             $testcase = new stdClass();
             $testcase->devcodeid = $data->id;
-            $testcase->input = $data->testcase_input[$key];
-            $testcase->output = $data->testcase_output[$key];
-            $testcase->points = isset($data->testcase_points[$key]) ? floatval($data->testcase_points[$key]) : 10.0;
-            $testcase->time_limit = isset($data->testcase_time_limit[$key]) ? intval($data->testcase_time_limit[$key]) : 3000;
-            $testcase->visible_to_student = isset($data->testcase_visible[$key]) ? intval($data->testcase_visible[$key]) : 0;
+            $testcase->input = $input;
+            $testcase->output = isset($data->testcase_output[$key]) ? $data->testcase_output[$key] : '';
+            $testcase->points = isset($data->testcase_points[$key]) ? $data->testcase_points[$key] : 10;
+            $testcase->time_limit = isset($data->testcase_time_limit[$key]) ? $data->testcase_time_limit[$key] : 1000;
+            $testcase->memory_limit = isset($data->testcase_memory_limit[$key]) ? $data->testcase_memory_limit[$key] : 128 * 1024; 
+            $testcase->visible_to_student = isset($data->testcase_visible[$key]) ? $data->testcase_visible[$key] : 0;
             $testcase->description = isset($data->testcase_description[$key]) ? $data->testcase_description[$key] : '';
             $testcase->timemodified = time();
             
-            if (!empty($data->testcase_id[$key])) {
-                // Update existing
-                $testcase->id = $data->testcase_id[$key];
+            if ($testcaseid) {
+                // Update existing test case
+                $testcase->id = $testcaseid;
                 $DB->update_record('devcode_testcases', $testcase);
-                $updated_ids[] = $testcase->id;
-                
-                // Debug log
-                error_log('Updated testcase ID: ' . $testcase->id);
             } else {
-                // Insert new
+                // Create new test case
                 $testcase->timecreated = time();
-                $testcase_id = $DB->insert_record('devcode_testcases', $testcase);
-                $updated_ids[] = $testcase_id;
-                
-                // Debug log
-                error_log('Inserted new testcase with ID: ' . $testcase_id);
+                $DB->insert_record('devcode_testcases', $testcase);
             }
         }
     }
-
+    
+    // Process intro field files
+    if (isset($data->introeditor)) {
+        $data = file_postupdate_standard_editor($data, 'intro', array('trusttext' => true), context_module::instance($data->coursemodule), 'mod_devcode', 'intro', 0);
+        $DB->update_record('devcode', $data);
+    }
+    
+    // Update grade item for this activity
+    devcode_grade_item_update($data);
+    
     return true;
 }
 
@@ -735,3 +744,4 @@ function devcode_export_testcases($devcodeid) {
     
     return json_encode($export_data, JSON_PRETTY_PRINT);
 }
+
