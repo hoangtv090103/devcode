@@ -471,6 +471,9 @@ document.addEventListener("DOMContentLoaded", function() {
         
         // Sync scroll position
         lineNumbers.scrollTop = codeEditor.scrollTop;
+        
+        // Update line numbers height to match the editor height
+        lineNumbers.style.height = codeEditor.clientHeight + "px";
     }
     
     // Initialize line numbers on page load
@@ -484,6 +487,19 @@ document.addEventListener("DOMContentLoaded", function() {
                 lineNumbers.scrollTop = this.scrollTop;
             }
         });
+        
+        // Update line numbers when textarea is resized
+        codeEditor.addEventListener("mouseup", updateLineNumbers);
+        window.addEventListener("resize", updateLineNumbers);
+        
+        // Prevent the line numbers from being scrolled directly by the user
+        if (lineNumbers) {
+            lineNumbers.addEventListener("wheel", function(e) {
+                e.preventDefault();
+                // Forward the wheel event to the code editor
+                codeEditor.scrollTop += e.deltaY;
+            });
+        }
     }
     
     // Xử lý sự kiện submit form

@@ -1510,6 +1510,7 @@
     font-size: 14px;
     user-select: none;
     overflow: hidden;
+    pointer-events: none; /* Prevent user interaction with line numbers */
 }
 
 .line-numbers div {
@@ -1520,6 +1521,7 @@
 
 .code-editor-content {
     flex: 1;
+    height: 100%;
 }
 
 .code-editor {
@@ -1529,7 +1531,8 @@
     font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
     font-size: 14px;
     line-height: 24px !important;
-    height: 400px;
+    height: 100%; /* Make the code editor fill the available height */
+    min-height: 400px;
     resize: vertical;
     padding: 15px !important;
     margin: 0 !important;
@@ -1537,9 +1540,33 @@
     background-color: #fff;
 }
 
+/* Set the height of the editor to match sidebar */
+.code-tab-active .editor-with-line-numbers {
+    height: calc(80vh - 30px); /* Match the max-height of sidebar-intro */
+}
+
 .code-editor:focus {
     outline: none;
     box-shadow: none !important;
+}
+
+/* Custom scrollbar for code editor */
+.code-editor::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.code-editor::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.code-editor::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.code-editor::-webkit-scrollbar-thumb:hover {
+    background: #a3a3a3;
 }
 
 .editor-with-line-numbers:focus-within {
