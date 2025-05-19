@@ -829,9 +829,17 @@ document.addEventListener("DOMContentLoaded", function() {
                     const stdout = data.stdout || "";
                     actualCell.textContent = stdout.trim();
                     
-                    // So sánh với kết quả mong đợi
-                    const expected = testcase.expected_output.trim();
-                    const actual = stdout.trim();
+                    // So sánh với kết quả mong đợi - sử dụng cùng logic như ở phía server
+                    let expected = (testcase.expected_output || "").trim();
+                    let actual = stdout.trim();
+                    
+                    // Xử lý khác biệt về ký tự xuống dòng
+                    expected = expected.replace(/\r\n/g, "\n");
+                    actual = actual.replace(/\r\n/g, "\n");
+                    
+                    // Strip any trailing newlines
+                    expected = expected.replace(/\n+$/, "");
+                    actual = actual.replace(/\n+$/, "");
                     
                     if (expected === actual) {
                         // Kết quả đúng
