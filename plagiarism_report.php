@@ -355,7 +355,7 @@ if (empty($plagiarism_pairs)) {
     foreach ($plagiarism_pairs as $pair) {
         echo '<tr>';
         echo '<td>' . $pair->submission1_id . '</td>';
-        echo '<td>' . $pair->fullname1 . '</td>';
+        echo '<td>' . $pair->fullname2 . '</td>';
         echo '<td>' . $pair->assignmentname . '</td>';
         echo '<td>' . userdate($pair->timemodified1) . '</td>';
 
@@ -383,7 +383,7 @@ if (empty($plagiarism_pairs)) {
         echo '</td>';
 
         // Show matched submission info
-        echo '<td>' . $pair->fullname2 . '</td>';
+        echo '<td>' . $pair->fullname1 . '</td>';
 
         // Show review status
         echo '<td>';

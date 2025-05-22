@@ -156,9 +156,18 @@ if (empty($students)) {
             // Output status using the badge class
             echo '<td>' . html_writer::tag('span', $statustext, array('class' => $status_class)) . '</td>';
             
-            // Grade
+            // Grade - Show score/total points from test cases
             if (isset($latestsubmission->score)) {
-                echo '<td>' . $latestsubmission->score . '/10</td>';
+                // Get total points possible from all test cases
+                $total_points = $DB->get_field_sql(
+                    "SELECT SUM(points) FROM {devcode_testcases} WHERE devcodeid = ?",
+                    array($devcode->id)
+                );
+                
+                // Default to 10 if no test cases with points are found
+                $total_points = $total_points ? $total_points : 10;
+                
+                echo '<td>' . $latestsubmission->score . '/' . $total_points . '</td>';
             } else {
                 echo '<td>-</td>';
             }

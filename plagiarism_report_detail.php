@@ -74,9 +74,22 @@ echo '<div class="card-header">' . get_string('submissiondetails', 'mod_devcode'
 echo '<div class="card-body">';
 echo '<div class="row">';
 
-// Student info
+// Get the compared student for display (if available)
+$compared_student_name = '';
+if (!empty($results)) {
+    // Get the first result's compared student name
+    $first_result = reset($results);
+    $compared_student_name = $first_result->compared_fullname;
+}
+
+// Student info - Now showing the compared student (the one being copied from)
 echo '<div class="col-md-4">';
-echo '<p><strong>' . get_string('student', 'mod_devcode') . ':</strong> ' . fullname($student) . '</p>';
+if (!empty($compared_student_name)) {
+    echo '<p><strong>' . get_string('student', 'mod_devcode') . ':</strong> ' . $compared_student_name . '</p>';
+} else {
+    // Fallback to original student if no compared student is found
+    echo '<p><strong>' . get_string('student', 'mod_devcode') . ':</strong> ' . fullname($student) . '</p>';
+}
 echo '</div>';
 
 // Assignment info
@@ -115,7 +128,9 @@ if (empty($results)) {
     foreach ($results as $result) {
         echo '<tr>';
         echo '<td>' . $result->compared_submission_id . '</td>';
-        echo '<td>' . $result->compared_fullname . '</td>';
+        
+        // Now showing the current student (the one who copied) instead of compared student
+        echo '<td>' . fullname($student) . '</td>';
 
         // Color-coded similarity
         $class = '';

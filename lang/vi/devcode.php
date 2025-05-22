@@ -78,7 +78,7 @@ $string['gradingsubmission'] = 'Chấm điểm bài nộp';
 $string['submittedcode'] = 'Mã nguồn đã nộp';
 $string['submissiondate'] = 'Ngày nộp';
 $string['submissionnotallowed'] = 'Không được phép nộp bài vào thời điểm này';
-$string['student'] = 'Sinh viên';
+$string['student'] = 'Học viên';
 
 // Chuỗi trạng thái
 $string['statusnotsubmitted'] = 'Chưa nộp';
@@ -382,7 +382,7 @@ $string['highsimilarity'] = 'Cao (≥75%)';
 $string['mediumsimilarity'] = 'Trung bình (50-74%)';
 $string['lowsimilarity'] = 'Thấp (<50%)';
 $string['submissionid'] = 'Mã bài nộp';
-$string['student'] = 'Sinh viên';
+$string['student'] = 'Học viên';
 $string['assignment'] = 'Bài tập';
 $string['submissiondate'] = 'Ngày nộp';
 $string['actions'] = 'Hành động';
