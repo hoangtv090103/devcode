@@ -15,11 +15,23 @@ require_once(dirname(__FILE__) . '/lib.php');
 require_once($CFG->libdir . '/accesslib.php');
 
 use \core\output\html_writer;
-use \moodle_exception;
-use \moodle_url;
+use \core\exception\moodle_exception;
 
 // Get submission ID - this is always required
-$sid = required_param('sid', PARAM_INT); // Submission ID
+$sid = optional_param('sid', 0, PARAM_INT); // Submission ID
+$submission_id = optional_param('submission', 0, PARAM_INT); // Submission ID from myprogress.php
+$courseid = optional_param('courseid', 0, PARAM_INT); // Course ID from URL
+
+// Use whichever parameter is provided
+if ($sid == 0 && $submission_id == 0) {
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification(get_string('notfound', 'devcode') . ': ' . get_string('submission', 'devcode'), 'error');
+    echo $OUTPUT->footer();
+    exit;
+}
+
+// Use whichever parameter is provided
+$sid = ($sid != 0) ? $sid : $submission_id;
 
 // Get the submission first
 $submission = $DB->get_record('devcode_submissions', array('id' => $sid), '*');
@@ -57,8 +69,28 @@ if ($id == 0) {
 
 // Lấy thông tin course module, course, và devcode
 $cm = get_coursemodule_from_id('devcode', $id, 0, false, MUST_EXIST);
-$course = $DB->get_record('course', array('id' => $cm->course), '*', MUST_EXIST);
-$devcode = $DB->get_record('devcode', array('id' => $cm->instance), '*', MUST_EXIST);
+
+// If courseid is provided in URL, use it instead of the one from course module
+if ($courseid > 0) {
+    $course = $DB->get_record('course', array('id' => $courseid), '*');
+} else {
+    $course = $DB->get_record('course', array('id' => $cm->course), '*');
+}
+
+$devcode = $DB->get_record('devcode', array('id' => $cm->instance), '*');
+
+// Check if course or devcode is not found
+if (!$course || !$devcode) {
+    echo $OUTPUT->header();
+    if (!$course) {
+        echo $OUTPUT->notification(get_string('invalidcourse', 'error') . ' (ID: ' . ($courseid > 0 ? $courseid : $cm->course) . ')', 'error');
+    }
+    if (!$devcode) {
+        echo $OUTPUT->notification(get_string('invaliddevcode', 'devcode') . ' (ID: ' . $cm->instance . ')', 'error');
+    }
+    echo $OUTPUT->footer();
+    exit;
+}
 
 // Kiểm tra đăng nhập và quyền truy cập
 require_login($course, true, $cm);
