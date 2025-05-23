@@ -533,6 +533,17 @@ if ($mform->is_cancelled()) {
         set_time_limit($original_time_limit);
     }
 
+    // Cập nhật thống kê cho student dashboard
+    if (file_exists($CFG->dirroot . '/report/devcodereports/lib.php')) {
+        require_once($CFG->dirroot . '/report/devcodereports/lib.php');
+        if (function_exists('report_devcodereports_update_student_stats')) {
+            debugging('Updating student stats for user ' . $USER->id . ' in course ' . $course->id, DEBUG_DEVELOPER);
+            report_devcodereports_update_student_stats($course->id, $USER->id);
+        } else {
+            debugging('Function report_devcodereports_update_student_stats not found', DEBUG_DEVELOPER);
+        }
+    }
+
     // Always show success message since processing is happening synchronously
     $message = get_string('submissionsuccess', 'devcode');
     $notification = new \core\output\notification($message, \core\output\notification::NOTIFY_SUCCESS);

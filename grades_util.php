@@ -68,6 +68,24 @@ function devcode_update_grades($devcode, $userid = 0, $nullifnone = true) {
     // Update the grades in the gradebook
     $result = devcode_grade_item_update($devcode, $grades);
     
+    // Cập nhật thống kê cho student dashboard nếu plugin report_devcodereports có cài đặt
+    if (file_exists($CFG->dirroot . '/report/devcodereports/lib.php')) {
+        require_once($CFG->dirroot . '/report/devcodereports/lib.php');
+        if (function_exists('report_devcodereports_update_student_stats')) {
+            debugging('Updating student stats after grade update', DEBUG_DEVELOPER);
+            
+            if ($userid > 0) {
+                // Cập nhật cho một sinh viên cụ thể
+                report_devcodereports_update_student_stats($devcode->course, $userid);
+            } else {
+                // Cập nhật cho tất cả sinh viên đã nộp bài
+                foreach ($userids as $uid) {
+                    report_devcodereports_update_student_stats($devcode->course, $uid);
+                }
+            }
+        }
+    }
+    
     return $result;
 }
 
@@ -227,6 +245,15 @@ function devcode_grade_submission($submission, $test_results, $devcode) {
     
     // Update grades in the gradebook
     devcode_update_grades($devcode, $submission->userid);
+    
+    // Cập nhật thống kê cho student dashboard nếu plugin report_devcodereports có cài đặt
+    if (file_exists($CFG->dirroot . '/report/devcodereports/lib.php')) {
+        require_once($CFG->dirroot . '/report/devcodereports/lib.php');
+        if (function_exists('report_devcodereports_update_student_stats')) {
+            debugging('Updating student stats after submission grading', DEBUG_DEVELOPER);
+            report_devcodereports_update_student_stats($devcode->course, $submission->userid);
+        }
+    }
     
     return $grade;
 }
